@@ -32,9 +32,6 @@ workflows:
           pod install --repo-update
           cd ..
 
-      - name: Apply Vault Profiles
-        script: xcode-project use-profiles
-
       - name: Build IPA
         script: |
           flutter build ipa --release --export-options-plist=$HOME/export_options.plist
