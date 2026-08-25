@@ -1,7 +1,3 @@
-# مطابق لقالب Flutter 3.24.5 الرسمي، مع فارق واحد: السطر التالي مُفعَّل.
-# GoogleMaps 9.x (يسحبه google_maps_flutter_ios) يشترط iOS 15، وبلا تصريح
-# صريح تستنتج CocoaPods المنصّة من مشروع Xcode — استنتاج ينجح غالبًا لكنه
-# يترك مجالًا للفشل في أول بناء سحابي. التصريح يزيل الاحتمال.
 platform :ios, '15.5'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -43,10 +39,12 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # حل مشكلة الـ Modular Headers الخاصة بـ Firebase و mobile_scanner
     target.build_configurations.each do |config|
-      config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-      config.build_settings['DEFINES_MODULE'] = 'YES'
+      # السماح الإجباري لملفات Firebase غير المهيأة بنظام الوحدات
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      
+      # توحيد إصدار الـ Deployment Target لجميع الحزم الفرعية لتجنب أخطاء mobile_scanner
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
     end
   end
 end
