@@ -2,7 +2,7 @@
 # GoogleMaps 9.x (يسحبه google_maps_flutter_ios) يشترط iOS 15، وبلا تصريح
 # صريح تستنتج CocoaPods المنصّة من مشروع Xcode — استنتاج ينجح غالبًا لكنه
 # يترك مجالًا للفشل في أول بناء سحابي. التصريح يزيل الاحتمال.
-platform :ios, '15.0'
+platform :ios, '15.5'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
