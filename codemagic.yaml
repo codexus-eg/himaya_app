@@ -1,69 +1,52 @@
-# إعداد البناء السحابي (Codemagic) — يبني نسخة iOS ويرفعها إلى App Store Connect
-# بدون الحاجة إلى جهاز Mac. يُرفع هذا الملف مع المشروع على GitHub، ثم يُربط
-# المستودع من لوحة Codemagic فيلتقط الملف تلقائيًا.
-#
-# قبل أول تشغيل يلزم من لوحة Codemagic:
-#   1) Teams > Integrations > App Store Connect: أضف مفتاح API باسم HimayaTrackASC
-#      (يُنشأ من App Store Connect > Users and Access > Integrations > App Store Connect API)
-#   2) Code signing: اختر Automatic ليتولّى Codemagic إنشاء الشهادات والملفات التعريفية
-#
-# ملاحظة: الإصدار يؤخذ من pubspec.yaml؛ ارفع رقم البناء قبل كل رفع جديد.
-
 workflows:
-  ios-release:
-    name: Himaya Track — iOS release
+  idris-schools-ios-testflight-workflow:
+    name: IDRIS Schools iOS Build and Publish to TestFlight
+    max_build_duration: 120
     instance_type: mac_mini_m2
-    max_build_duration: 60
 
     integrations:
-      app_store_connect: HimayaTrackASC
+      app_store_connect: noourway
 
     environment:
-      flutter: 3.24.5
+      flutter: stable
       xcode: latest
       cocoapods: default
+
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.himayatrack.app
-      vars:
-        BUNDLE_ID: com.himayatrack.app
+        provisioning_profiles:
+          - IDRIS_Schools_Profile
+        certificates:
+          - ios_cert_manual
 
     scripts:
-      - name: تثبيت حزم Flutter
-        script: flutter pub get
-
-      - name: تثبيت اعتماديات iOS (CocoaPods)
+      - name: Set iOS deployment target
         script: |
-          # Podfile يُولَّد تلقائيًا عند أول بناء إن لم يكن موجودًا
-          find . -name "Podfile" -execdir pod install \; || true
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/Runner.xcodeproj/project.pbxproj
 
-      - name: تجهيز ملفات التوقيع
+      - name: Clean and Get Dependencies
+        script: |
+          flutter config --no-enable-swift-package-manager
+          flutter clean
+          flutter pub get
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod install --repo-update
+          cd ..
+
+      - name: Apply Vault Profiles
         script: xcode-project use-profiles
 
-      - name: التحقق من التحليل الساكن
-        script: flutter analyze lib || true
-
-      - name: بناء ملف IPA
+      - name: Build IPA
         script: |
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release --export-options-plist=$HOME/export_options.plist
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-      - flutter_drive.log
 
     publishing:
-      email:
-        recipients:
-          - mostafasaraya1995@gmail.com
-        notify:
-          success: true
-          failure: true
-
       app_store_connect:
         auth: integration
-        # يرفع إلى TestFlight أولًا (يقابل الاختبار المغلق في Google Play).
-        # بعد استقرار النسخة تُقدَّم للمراجعة من App Store Connect.
         submit_to_testflight: true
-        submit_to_app_store: false
+      email:
+        recipients:
+          - codexus.eg@gmail.com
