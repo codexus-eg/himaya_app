@@ -1,6 +1,6 @@
 workflows:
-  idris-schools-ios-testflight-workflow:
-    name: IDRIS Schools iOS Build and Publish to TestFlight
+  himaya-track-ios-testflight-workflow:
+    name: Himaya Track iOS Build and Publish to TestFlight
     max_build_duration: 120
     instance_type: mac_mini_m2
 
@@ -12,11 +12,10 @@ workflows:
       xcode: latest
       cocoapods: default
 
+      # تفعيل التوقيع التلقائي بدلاً من اليدوي
       ios_signing:
-        provisioning_profiles:
-          - IDRIS_Schools_Profile
-        certificates:
-          - ios_cert_manual
+        distribution_type: app_store
+        bundle_identifier: com.himayatrack.app
 
     scripts:
       - name: Set iOS deployment target
@@ -47,6 +46,3 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-      email:
-        recipients:
-          - codexus.eg@gmail.com
