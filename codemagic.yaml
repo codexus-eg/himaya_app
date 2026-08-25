@@ -34,7 +34,7 @@ workflows:
 
       - name: Build IPA
         script: |
-          flutter build ipa --release --export-options-plist=$HOME/export_options.plist
+          flutter build ipa --release --export-method=app-store
 
     artifacts:
       - build/ios/ipa/*.ipa
