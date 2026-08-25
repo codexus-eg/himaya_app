@@ -1,0 +1,84 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# FVM Version Cache
+.fvm/
+
+# Gradle build artifacts (not under /build/)
+/android/app/build/
+/android/build/
+/android/.gradle/
+
+# Release bundles / installers (large binaries — keep out of the repo)
+*.aab
+*.apk
+
+# Local editor backup copies
+*.bak_*
+*.bak_after_*
+*.bak_before_*
+
+# ⚠️ Secrets — keep OUT of remote repo
+CLAUDE.md
+# Local Claude Code permissions: approved commands are stored verbatim,
+# including sudo/MySQL passwords typed into them.
+.claude/settings.local.json
+**/key.properties
+*.jks
+*.keystore
+google-services.json
+
+# ⚠️ Server-side scratch / migration scripts dumped in project root
+# (NOT part of the Flutter app — contain MySQL/Traccar credentials)
+/*.php
+/*.py
+/*.txt
+/*.sh
+/*.service
+db_config.php
+# نسخة السورس المُصدَّرة للتسليم — لا تُرفع (تُولَّد من git عند الحاجة)
+himaya-flutter-source.zip
+*.zip

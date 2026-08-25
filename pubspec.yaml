@@ -1,0 +1,64 @@
+name: himaya_track
+description: H.TRACK - Fleet GPS Tracking App
+publish_to: 'none'
+version: 1.0.0+29
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  http: ^1.2.0
+  provider: ^6.1.2
+  shared_preferences: ^2.2.3
+  location: ^7.0.0
+  google_maps_flutter: ^2.6.1
+  image_picker: ^1.1.2
+  image_cropper: ^7.1.0
+  intl: 0.20.2
+  cached_network_image: ^3.3.1
+  flutter_svg: ^2.0.10+1
+  lottie: ^3.1.2
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
+  flutter_local_notifications: ^17.0.0
+  url_launcher: ^6.3.0
+  web_socket_channel: ^2.4.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  mobile_scanner: ^6.0.11
+  device_info_plus: ^10.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  # App Store يرفض أيقونة بقناة شفافية، فنُسطّحها على خلفية بيضاء مثل أندرويد
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo_foreground.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/fonts/
+    - assets/markers/
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
