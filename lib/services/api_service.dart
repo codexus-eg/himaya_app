@@ -86,48 +86,69 @@ class ApiService {
       // refresh_token) a 401 means "wrong credentials" — pass the server's real
       // error through instead of the misleading "session expired" message.
       if (response.statusCode == 401 && requiresAuth && !isRetry) {
-        final refreshed = await _refreshToken();
-        if (refreshed) {
+        final rr = await _refreshToken();
+        if (rr == 'ok') {
           return _request(action: action, body: body, requiresAuth: requiresAuth, isRetry: true, timeout: timeout);
+        }
+        if (rr == 'network') {
+          // لم نصل للسيرفر: الجلسة قد تكون سليمة تمامًا — لا تُمسح
+          return {'success': false, 'error': tr('api_no_internet'), 'network': true};
         }
         await clearTokens();
         return {'success': false, 'error': tr('api_session_exp'), 'code': 401};
       }
 
       return data;
+    // network:true => عطل اتصال لا رفض من السيرفر. من يقرأه يمتنع عن مسح
+    // الجلسة: التوكن على السيرفر صالح لسنة، والفشل هنا مؤقت.
     } on SocketException {
       resetClient(); // اتصال ميت → اعمل client جديد للطلب التالي
-      return {'success': false, 'error': tr('api_no_internet')};
+      return {'success': false, 'error': tr('api_no_internet'), 'network': true};
     } on HttpException {
-      return {'success': false, 'error': tr('api_server_err')};
+      return {'success': false, 'error': tr('api_server_err'), 'network': true};
     } on FormatException {
-      return {'success': false, 'error': tr('api_format_err')};
+      return {'success': false, 'error': tr('api_format_err'), 'network': true};
     } on TimeoutException {
       resetClient(); // الطلب علّق على اتصال keep-alive بايظ → اقفل الـ pool
-      return {'success': false, 'error': tr('api_timeout')};
+      return {'success': false, 'error': tr('api_timeout'), 'network': true};
     } catch (e) {
       debugPrint('API Error [$action]: $e');
-      return {'success': false, 'error': tr('api_unexpected')};
+      return {'success': false, 'error': tr('api_unexpected'), 'network': true};
     }
   }
 
-  static Future<bool> _refreshToken() async {
+  // 'ok' | 'rejected' (السيرفر ردّ ورفض) | 'network' (لم نصل إليه أصلًا)
+  // كانت ترجع false في الحالتين، فتُمسح جلسة سليمة عند أول عثرة نت.
+  static Future<String> _refreshToken() async {
+    final refresh = await getRefreshToken();
+    if (refresh == null) return 'rejected';   // لا يوجد ما نجدّد به
     try {
-      final refresh = await getRefreshToken();
-      if (refresh == null) return false;
       final response = await _client.post(
         Uri.parse(baseUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'action': 'refresh_token', 'refresh_token': refresh}),
       ).timeout(const Duration(seconds: timeoutSeconds));
-      final data = jsonDecode(response.body);
-      if (data is Map && data['success'] == true && data['token'] != null) {
+      // 5xx = عطل مؤقت في السيرفر لا حكم على التوكن
+      if (response.statusCode >= 500) return 'network';
+      Map? data;
+      try {
+        final d = jsonDecode(response.body);
+        if (d is Map) data = d;
+      } catch (_) {}
+      if (data == null) return 'network';     // رد غير مفهوم (صفحة خطأ من وسيط)
+      if (data['success'] == true && data['token'] != null) {
         await saveTokens(token: data['token'], refreshToken: data['refresh_token'] ?? refresh);
-        return true;
+        return 'ok';
       }
-      return false;
+      return 'rejected';                      // ردّ وفهمناه: التوكن غير صالح
+    } on TimeoutException {
+      resetClient();
+      return 'network';
+    } on SocketException {
+      resetClient();
+      return 'network';
     } catch (_) {
-      return false;
+      return 'network';
     }
   }
 
@@ -225,8 +246,9 @@ class ApiService {
   }
 
   // Public wrapper for any API action
-  static Future<Map<String, dynamic>> request(String action, [Map<String, dynamic>? body]) async {
-    return _request(action: action, body: body);
+  // timeout اختياري: النداءات السريعة (تنبيهات) لا تنتظر 30ث على نت ضعيف
+  static Future<Map<String, dynamic>> request(String action, [Map<String, dynamic>? body, int? timeout]) async {
+    return _request(action: action, body: body, timeout: timeout);
   }
 
   static Future<Map<String, dynamic>> verifyPassword(String password) async {
@@ -473,7 +495,7 @@ class ApiService {
     // Server expects: dealer_id, new_yearly, new_lifetime, renew_yearly, renew_lifetime
     final Map<String, String> typeMap = {
       'new_subscription': 'new_yearly',
-      'new_lifetime': 'lifetime',
+      'new_lifetime': 'new_lifetime',   // السيرفر يقرأ new_lifetime؛ 'lifetime' كان يُهمَل بصمت
       'renew_annual': 'renew_yearly',
       'renew_lifetime': 'renew_lifetime',
     };

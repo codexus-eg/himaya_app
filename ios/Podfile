@@ -1,4 +1,10 @@
-platform :ios, '15.5'
+# مطابق لقالب Flutter 3.24.5 الرسمي، مع فارق واحد: السطر التالي مُفعَّل.
+# GoogleMaps 9.x يشترط iOS 15، و mobile_scanner 6.x (MLKit) يشترط أعلى.
+# رُفع إلى 16.0 بعد فشل pod install: "required a higher minimum deployment target".
+# صريح تستنتج CocoaPods المنصّة من مشروع Xcode — استنتاج ينجح غالبًا لكنه
+# يترك مجالًا للفشل في أول بناء سحابي. التصريح يزيل الاحتمال.
+platform :ios, '16.0'
+
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -28,7 +34,21 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
-  use_modular_headers!
+
+  # الحل الموثَّق من FlutterFire لخطأ:
+  #   "Include of non-modular header inside framework module
+  #    'firebase_messaging.FLTFirebaseMessagingPlugin'"
+  # السبب أن FLTFirebaseMessagingPlugin.h يستورد <Firebase/Firebase.h>،
+  # وهي ترويسة umbrella غير modular. الحل ليس منع الـmodule ولا السماح
+  # بالاستيراد (جُرّبا وفشلا)، بل جعل ترويسات Firebase نفسها modular.
+  pod 'Firebase', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'GoogleUtilities', :modular_headers => true
+  # ⚠️ لا use_modular_headers! — يجبر كل pod أن يصير module، فيُمنع
+  # firebase_messaging عندها من استيراد <Firebase/Firebase.h> غير الـmodular
+  # ويفشل البناء. قالب Flutter الرسمي لا يحويه أصلًا.
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -37,20 +57,18 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # على مستوى المشروع: وضعه على الأهداف وحدها لم يكفِ (تكرر الخطأ حرفيًا).
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+  end
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
+      # firebase_messaging 15.x يستورد <Firebase/Firebase.h> وهو ترويسة غير
+      # modular، وXcode يرفض ذلك داخل framework module افتراضيًا فيفشل البناء:
+      #   "Include of non-modular header inside framework module"
+      # هذا الإعداد يسمح به — وهو الحل المتعارف عليه لحزم Firebase.
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
     end
-  end
-
-  installer.aggregate_targets.each do |aggregate_target|
-    aggregate_target.user_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      end
-    end
-    aggregate_target.user_project.save
   end
 end

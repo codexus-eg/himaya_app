@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +9,6 @@ import '../services/api_service.dart';
 import '../services/i18n.dart';
 import '../models/models.dart';
 import '../main.dart' show navigatorKey;
-import 'dart:ui' show Locale;
 
 class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   AppProvider() {
@@ -28,6 +26,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool get isLoggedIn => _isLoggedIn;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  String? _netError; // انقطاع اتصال — يُعرض شريطًا للمستخدم
+  String? get netError => _netError;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
   bool get isDealer => _currentUser?.isDealer ?? false;
   bool get isViewOnly => _currentUser?.viewOnly ?? false;
@@ -40,7 +40,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     final lang = prefs.getString('app_locale') ?? 'ar';
     I18n.lang = lang == 'en' ? 'en' : 'ar';
-    _locale = lang == 'en' ? const Locale('en', 'US') : const Locale('ar', 'EG');
+    _locale =
+        lang == 'en' ? const Locale('en', 'US') : const Locale('ar', 'EG');
     notifyListeners();
   }
 
@@ -48,7 +49,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_locale', lang);
     I18n.lang = lang == 'en' ? 'en' : 'ar';
-    _locale = lang == 'en' ? const Locale('en', 'US') : const Locale('ar', 'EG');
+    _locale =
+        lang == 'en' ? const Locale('en', 'US') : const Locale('ar', 'EG');
     notifyListeners();
   }
 
@@ -64,16 +66,21 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('app_theme') ?? 'system';
-    _themeMode = saved == 'dark' ? ThemeMode.dark
-        : saved == 'light' ? ThemeMode.light
-        : ThemeMode.system;
+    _themeMode = saved == 'dark'
+        ? ThemeMode.dark
+        : saved == 'light'
+            ? ThemeMode.light
+            : ThemeMode.system;
     notifyListeners();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = mode == ThemeMode.dark ? 'dark'
-        : mode == ThemeMode.light ? 'light' : 'system';
+    final key = mode == ThemeMode.dark
+        ? 'dark'
+        : mode == ThemeMode.light
+            ? 'light'
+            : 'system';
     await prefs.setString('app_theme', key);
     _themeMode = mode;
     notifyListeners();
@@ -107,11 +114,16 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   List<DeviceModel> get filteredDevices {
     final base = tabDevices;
     switch (_deviceFilter) {
-      case 'on': return base.where((d) => d.isOnline).toList();
-      case 'moving': return base.where((d) => d.isMoving).toList();
-      case 'inactive': return base.where((d) => d.isInactive).toList();
-      case 'off': return base.where((d) => d.isOffline || d.isInactive).toList();
-      default: return base;
+      case 'on':
+        return base.where((d) => d.isOnline).toList();
+      case 'moving':
+        return base.where((d) => d.isMoving).toList();
+      case 'inactive':
+        return base.where((d) => d.isInactive).toList();
+      case 'off':
+        return base.where((d) => d.isOffline || d.isInactive).toList();
+      default:
+        return base;
     }
   }
 
@@ -126,10 +138,14 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   List<UserModel> get filteredClients {
     switch (_clientFilter) {
-      case 'dealer': return _users.where((u) => u.isDealer).toList();
-      case 'sub': return _users.where((u) => u.isSubDealer).toList();
-      case 'client': return _users.where((u) => u.isClient).toList();
-      default: return _users;
+      case 'dealer':
+        return _users.where((u) => u.isDealer).toList();
+      case 'sub':
+        return _users.where((u) => u.isSubDealer).toList();
+      case 'client':
+        return _users.where((u) => u.isClient).toList();
+      default:
+        return _users;
     }
   }
 
@@ -165,7 +181,7 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString('user_data');
-      final token    = prefs.getString('auth_token');
+      final token = prefs.getString('auth_token');
       if (userJson == null || token == null) {
         _isLoggedIn = false;
         return false;
@@ -190,14 +206,25 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     try {
       // ابدأ loadDevices و validateToken بالتوازي — عشان الأجهزة تتحدث فوراً
       // بدل ماننتظر token validation الأول ثم devices
-      final tokenFuture  = ApiService.validateToken();
+      final tokenFuture = ApiService.validateToken();
       final deviceFuture = loadDevices();
       // الداشبورد يعرض بطاقات الحسابات من users، وكانت تبدأ بعد اكتمال الأجهزة
       // بلا سبب — لا اعتماد بينهما (السيرفر يحدّد النطاق من التوكن). نبدأها معها.
       final usersFuture = loadUsers().catchError((_) {});
 
       final result = await tokenFuture;
-      if (result['success'] != true) {
+      // عطل شبكة ليس انتهاءَ جلسة: فتح التطبيق بلا نت كان يُخرج المستخدم ويجبره
+      // على كتابة كلمة المرور رغم أن جلسته صالحة لسنة على السيرفر.
+      if (result['network'] == true) {
+        _netError = result['error'] as String?;
+        notifyListeners();
+      } else if (result['must_change_password'] == 1 ||
+          result['must_change_password'] == '1') {
+        // توكن صالح لكن كلمة المرور لا تزال الافتراضية — السيرفر يرفض كل شيء
+        _mustChangePw = true;
+        notifyListeners();
+        return;
+      } else if (result['success'] != true) {
         await logout();
         return;
       }
@@ -213,7 +240,9 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
       _resumeSeq++;
       notifyListeners();
       // secondary data في الخلفية — لا ننتظرها (users بدأت مع الأجهزة أعلاه)
-      usersFuture.whenComplete(() { if (_users.isNotEmpty) notifyListeners(); });
+      usersFuture.whenComplete(() {
+        if (_users.isNotEmpty) notifyListeners();
+      });
       loadCardBalance().catchError((_) {});
       _startRefreshTimer();
     } catch (e) {
@@ -250,10 +279,10 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
         _currentUser = null;
       }
     } catch (e, stack) {
-  debugPrint('Init error: $e');
-  debugPrint('Stack: $stack');
-  _isLoggedIn = false;
-}
+      debugPrint('Init error: $e');
+      debugPrint('Stack: $stack');
+      _isLoggedIn = false;
+    }
 
     _isLoading = false;
     notifyListeners();
@@ -267,7 +296,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     _error = null;
     notifyListeners();
 
-    final result = await ApiService.login(username: username, password: password);
+    final result =
+        await ApiService.login(username: username, password: password);
 
     // Admin two-factor: server withholds the token until the Telegram OTP is verified.
     if (result['needs_2fa'] == true) {
@@ -278,7 +308,12 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     if (result['success'] == true) {
-      if (_requiresPwChange(result)) { _pwChangeResult = result; _isLoading = false; notifyListeners(); return false; }
+      if (_requiresPwChange(result)) {
+        _pwChangeResult = result;
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
       await _completeLogin(result);
     } else {
       _error = result['error'] ?? tr('login_error');
@@ -292,21 +327,54 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   // Two-factor challenge state (admin only). Non-null => awaiting OTP entry.
   String? _twoFactorChallenge;
   bool get needsTwoFactor => _twoFactorChallenge != null;
-  void cancelTwoFactor() { _twoFactorChallenge = null; _error = null; notifyListeners(); }
+  void cancelTwoFactor() {
+    _twoFactorChallenge = null;
+    _error = null;
+    notifyListeners();
+  }
 
   // إجبار تغيير كلمة المرور عند أول دخول (الباسورد الافتراضي 123456)
   Map<String, dynamic>? _pwChangeResult;
   bool get needsPasswordChange => _pwChangeResult != null;
+
+  // نفس الإجبار لكن عند الإقلاع بتوكن محفوظ: كان قفل التطبيق وفتحه يتجاوز
+  // الشاشة تمامًا (التوكن يُحفظ قبلها). السيرفر يرفض الأفعال الآن، وهذه
+  // تعرض شاشة التعيين بدل رسائل خطأ غامضة.
+  bool _mustChangePw = false;
+  bool get mustChangePassword => _mustChangePw;
+
+  /// تعيين كلمة المرور من شاشة الإقلاع — التوكن محفوظ وصالح، فبعد النجاح
+  /// نكمل التحميل بدل إعادة تسجيل الدخول.
+  Future<String?> completeForcedPasswordChange(String newPass) async {
+    final r = await ApiService.changePassword(newPass);
+    if (r['success'] != true) {
+      return (r['message'] ?? r['error'] ?? tr('failed')).toString();
+    }
+    _mustChangePw = false;
+    notifyListeners();
+    await loadDevices();
+    loadUsers().catchError((_) {});
+    return null;
+  }
+
   bool _requiresPwChange(Map<String, dynamic> r) {
     final u = r['user'];
     if (u is! Map) return false;
     final v = u['must_change_password'];
     return v == 1 || v == '1' || v == true;
   }
-  void cancelPasswordChange() { _pwChangeResult = null; _error = null; notifyListeners(); }
+
+  void cancelPasswordChange() {
+    _pwChangeResult = null;
+    _error = null;
+    notifyListeners();
+  }
+
   Future<bool> submitNewPassword(String newPass) async {
     if (_pwChangeResult == null) return false;
-    _isLoading = true; _error = null; notifyListeners();
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
     final r = await ApiService.changePassword(newPass);
     if (r['success'] == true) {
       final res = _pwChangeResult!;
@@ -315,7 +383,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     } else {
       _error = r['message'] ?? r['error'] ?? tr('failed');
     }
-    _isLoading = false; notifyListeners();
+    _isLoading = false;
+    notifyListeners();
     return _isLoggedIn;
   }
 
@@ -325,15 +394,22 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     _error = null;
     notifyListeners();
 
-    final result = await ApiService.verifyTwoFactor(challenge: _twoFactorChallenge!, code: code);
+    final result = await ApiService.verifyTwoFactor(
+        challenge: _twoFactorChallenge!, code: code);
 
     if (result['success'] == true) {
       _twoFactorChallenge = null;
-      if (_requiresPwChange(result)) { _pwChangeResult = result; _isLoading = false; notifyListeners(); return false; }
+      if (_requiresPwChange(result)) {
+        _pwChangeResult = result;
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
       await _completeLogin(result);
     } else {
       _error = result['error'] ?? tr('login_error');
-      if (result['expired'] == true) _twoFactorChallenge = null; // force restart of login
+      if (result['expired'] == true)
+        _twoFactorChallenge = null; // force restart of login
     }
 
     _isLoading = false;
@@ -344,7 +420,7 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _completeLogin(Map<String, dynamic> result) async {
     _currentUser = UserModel.fromJson(result['user']);
     _isLoggedIn = true;
-    await _loadInitialData();   // يرجّع فورًا (تحميل في الخلفية)
+    await _loadInitialData(); // يرجّع فورًا (تحميل في الخلفية)
     _startRefreshTimer();
     // FCM في الخلفية — مايأخّرش فتح الحساب (getToken ممكن يكون بطيء على الشبكة). يعيد ربط
     // التوكن بالمستخدم المُصادَق (حفظ الإقلاع ممكن يفشل قبل التوكن، أو التوكن لمستخدم سابق).
@@ -356,7 +432,9 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> logout() async {
     _stopRefreshTimer();
     _disconnectLiveWs();
-    try { await ApiService.logout(); } catch (_) {}
+    try {
+      await ApiService.logout();
+    } catch (_) {}
     _currentUser = null;
     _isLoggedIn = false;
     _devices = [];
@@ -384,11 +462,20 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<bool> updateProfile({
-    String? fullName, String? phone, String? mobile, String? email, String? address, String? avatar,
+    String? fullName,
+    String? phone,
+    String? mobile,
+    String? email,
+    String? address,
+    String? avatar,
   }) async {
     final result = await ApiService.updateProfile(
-      fullName: fullName, phone: phone, mobile: mobile,
-      email: email, address: address, avatar: avatar,
+      fullName: fullName,
+      phone: phone,
+      mobile: mobile,
+      email: email,
+      address: address,
+      avatar: avatar,
     );
     if (result['success'] == true) {
       await refreshUser();
@@ -422,6 +509,7 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
         if (v == null) return null;
         return v == true || v == 1 || v == '1';
       }
+
       _cmdPasswordRequired = flag('cmdPassword') ?? _cmdPasswordRequired;
       _idleMarkerEnabled = flag('idleEngine') ?? _idleMarkerEnabled;
       notifyListeners();
@@ -433,7 +521,7 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     // الخلفية (loadDevices بيرفع _devicesLoading فالخريطة/الداشبورد تعرض مؤشر تحميل ثم
     // البيانات الطازة خلال ~ثانية). كان بيستنى loadDevices كامل قبل الفتح = بطء ملحوظ.
     loadDevices().catchError((_) {});
-    _loadCmdPasswordPref();   // خفيف، ولا يؤخّر فتح الحساب
+    _loadCmdPasswordPref(); // خفيف، ولا يؤخّر فتح الحساب
     Future.wait([loadUsers(), loadCardBalance()]).then((_) {
       notifyListeners();
     }).catchError((_) {});
@@ -449,10 +537,13 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     // في الحالة دي `raw` = null → ماتمسحش القايمة الموجودة (كان بيفضّيها → «لا توجد أجهزة»).
     final raw = result['data'] ?? result['devices'];
     if (raw is List) {
+      if (_netError != null) {
+        _netError = null;
+      } // الاتصال رجع → أخفِ الشريط
       final rawMaps = raw.cast<Map<String, dynamic>>();
       final all = rawMaps.map((d) => DeviceModel.fromJson(d)).toList();
-      _devices   = all.where((d) => !d.isInventory).toList();
-      _inventory = all.where((d) =>  d.isInventory).toList();
+      _devices = all.where((d) => !d.isInventory).toList();
+      _inventory = all.where((d) => d.isInventory).toList();
       _updateDashStats();
     }
 
@@ -471,17 +562,25 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     // usersLoading=true — عشان مايستبدلش الـ ListView بـ spinner ويرجّع السكرول لفوق وانت
     // بتتصفّح العملاء.
     final firstLoad = _users.isEmpty;
-    if (firstLoad) { _usersLoading = true; notifyListeners(); }
+    if (firstLoad) {
+      _usersLoading = true;
+      notifyListeners();
+    }
 
     final result = await ApiService.getUsers();
     // ⚠️ لو فشل الاستدعاء → raw=null → ماتمسحش قايمة العملاء (كان بيفضّيها → «لا يوجد عملاء»).
     final raw = result['data'] ?? result['users'];
     if (raw is List) {
-      _users = raw.map((u) => UserModel.fromJson(u as Map<String, dynamic>)).toList();
+      _users = raw
+          .map((u) => UserModel.fromJson(u as Map<String, dynamic>))
+          .toList();
       _updateDashStats();
     }
 
-    if (firstLoad) { _usersLoading = false; notifyListeners(); }
+    if (firstLoad) {
+      _usersLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> loadCardBalance() async {
@@ -496,69 +595,119 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _updateDashStats() {
-    _dashStats = DashboardStats.fromDevices(_devices, _inventory, _users, _cardBalance);
+    _dashStats =
+        DashboardStats.fromDevices(_devices, _inventory, _users, _cardBalance);
   }
 
   // ─── Filters ───────────────────────────────────────────────────────────────
 
-  void setDeviceFilter(String filter) { _deviceFilter = filter; notifyListeners(); }
-  void setClientFilter(String filter) { _clientFilter = filter; notifyListeners(); }
-  void selectDevice(DeviceModel? device) { _selectedDevice = device; notifyListeners(); }
+  void setDeviceFilter(String filter) {
+    _deviceFilter = filter;
+    notifyListeners();
+  }
+
+  void setClientFilter(String filter) {
+    _clientFilter = filter;
+    notifyListeners();
+  }
+
+  void selectDevice(DeviceModel? device) {
+    _selectedDevice = device;
+    notifyListeners();
+  }
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> addDevice({
-    required String imei, required String name, required String deviceType,
-    required int userId, required String subscriptionType, String? notes,
+    required String imei,
+    required String name,
+    required String deviceType,
+    required int userId,
+    required String subscriptionType,
+    String? notes,
   }) async {
     final result = await ApiService.addDevice(
-      imei: imei, name: name, deviceType: deviceType,
-      userId: userId, subscriptionType: subscriptionType, notes: notes,
+      imei: imei,
+      name: name,
+      deviceType: deviceType,
+      userId: userId,
+      subscriptionType: subscriptionType,
+      notes: notes,
     );
     if (result['success'] == true) await loadDevices();
     return result;
   }
 
-  Future<Map<String, dynamic>> updateUser({required int userId, required Map<String, dynamic> updates}) async {
-    final result = await ApiService.updateUser(userId: userId, updates: updates);
+  Future<Map<String, dynamic>> updateUser(
+      {required int userId, required Map<String, dynamic> updates}) async {
+    final result =
+        await ApiService.updateUser(userId: userId, updates: updates);
     if (result['success'] == true) await loadUsers();
     return result;
   }
 
   Future<Map<String, dynamic>> addUser({
-    required String username, required String password, required String fullName,
-    required String accountType, String? timezone, String? phone, String? mobile,
-    String? email, String? address, int? parentId,
+    required String username,
+    required String password,
+    required String fullName,
+    required String accountType,
+    String? timezone,
+    String? phone,
+    String? mobile,
+    String? email,
+    String? address,
+    int? parentId,
   }) async {
     final result = await ApiService.addUser(
-      username: username, password: password, fullName: fullName,
-      accountType: accountType, timezone: timezone, phone: phone,
-      mobile: mobile, email: email, address: address, parentId: parentId,
+      username: username,
+      password: password,
+      fullName: fullName,
+      accountType: accountType,
+      timezone: timezone,
+      phone: phone,
+      mobile: mobile,
+      email: email,
+      address: address,
+      parentId: parentId,
     );
     if (result['success'] == true) await loadUsers();
     return result;
   }
 
   Future<Map<String, dynamic>> changeImei({
-    required String oldImei, required String newImei, required String deviceType,
+    required String oldImei,
+    required String newImei,
+    required String deviceType,
   }) async {
-    final result = await ApiService.changeImei(oldImei: oldImei, newImei: newImei, deviceType: deviceType);
+    final result = await ApiService.changeImei(
+        oldImei: oldImei, newImei: newImei, deviceType: deviceType);
     if (result['success'] == true) await loadDevices();
     return result;
   }
 
   Future<Map<String, dynamic>> sendCommand({
-    required int deviceId, required String type, String? password,
-    String? customText, String? sosPhone1, String? sosPhone2, String? sosPhone3,
+    required int deviceId,
+    required String type,
+    String? password,
+    String? customText,
+    String? sosPhone1,
+    String? sosPhone2,
+    String? sosPhone3,
   }) async {
     return ApiService.sendCommand(
-      deviceId: deviceId, type: type, customText: customText,
+      deviceId: deviceId,
+      type: type,
+      customText: customText,
     );
   }
 
   Future<Map<String, dynamic>> getReport({
-    required String reportType, required int deviceId, required String period,
-    String? customFrom, String? customTo, int? speedLimit,
+    required String reportType,
+    required int deviceId,
+    required String period,
+    String? customFrom,
+    String? customTo,
+    int? speedLimit,
   }) async {
     final range = period == 'custom'
         ? {'from': customFrom!, 'to': customTo!}
@@ -566,33 +715,54 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
 
     switch (reportType) {
       case 'speed':
-        return ApiService.getReportEvents(deviceId: deviceId, from: range['from']!, to: range['to']!, type: 'deviceOverspeed');
+        return ApiService.getReportEvents(
+            deviceId: deviceId,
+            from: range['from']!,
+            to: range['to']!,
+            type: 'deviceOverspeed');
       case 'ignition':
-        return ApiService.getReportEvents(deviceId: deviceId, from: range['from']!, to: range['to']!, type: 'ignition');
+        return ApiService.getReportEvents(
+            deviceId: deviceId,
+            from: range['from']!,
+            to: range['to']!,
+            type: 'ignition');
       case 'alerts':
-        return ApiService.getReportEvents(deviceId: deviceId, from: range['from']!, to: range['to']!);
+        return ApiService.getReportEvents(
+            deviceId: deviceId, from: range['from']!, to: range['to']!);
       case 'operation':
-        return ApiService.getReportSummary(deviceId: deviceId, from: range['from']!, to: range['to']!);
+        return ApiService.getReportSummary(
+            deviceId: deviceId, from: range['from']!, to: range['to']!);
       case 'geofence':
-        return ApiService.getReportEvents(deviceId: deviceId, from: range['from']!, to: range['to']!, type: 'geofence');
+        return ApiService.getReportEvents(
+            deviceId: deviceId,
+            from: range['from']!,
+            to: range['to']!,
+            type: 'geofence');
       default:
         return {'success': false, 'error': tr('rep_unknown_type')};
     }
   }
 
   Future<Map<String, dynamic>> getReplayRoute({
-    required int deviceId, required String period, String? customFrom, String? customTo,
+    required int deviceId,
+    required String period,
+    String? customFrom,
+    String? customTo,
   }) async {
     final range = period == 'custom'
         ? {'from': customFrom!, 'to': customTo!}
         : ApiService.getDateRange(period);
-    return ApiService.getReportRoute(deviceId: deviceId, from: range['from']!, to: range['to']!);
+    return ApiService.getReportRoute(
+        deviceId: deviceId, from: range['from']!, to: range['to']!);
   }
 
   Future<Map<String, dynamic>> assignCards({
-    required int toUserId, required String cardType, required int quantity,
+    required int toUserId,
+    required String cardType,
+    required int quantity,
   }) async {
-    final result = await ApiService.assignCards(toUserId: toUserId, cardType: cardType, quantity: quantity);
+    final result = await ApiService.assignCards(
+        toUserId: toUserId, cardType: cardType, quantity: quantity);
     if (result['success'] == true) await loadCardBalance();
     return result;
   }
@@ -642,7 +812,7 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool _wsWanted = false; // true طالما مسجّل دخول والتطبيق في المقدمة
   int _wsRetry = 0;
   // تحديث العرض الحي من الـ WS + debounce التوقف
-  DateTime? _lastWsRefresh;                       // throttle إعادة بناء العرض من الـ WS
+  DateTime? _lastWsRefresh; // throttle إعادة بناء العرض من الـ WS
 
   void _connectLiveWs() {
     _wsWanted = true;
@@ -655,11 +825,14 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final token = await ApiService.getToken();
       if (token == null || !_wsWanted) return;
-      final ch = WebSocketChannel.connect(Uri.parse('wss://himaya-track.com/ws'));
+      final ch =
+          WebSocketChannel.connect(Uri.parse('wss://himaya-track.com/ws'));
       _wsChannel = ch;
       ch.sink.add(jsonEncode({'token': token}));
       _wsSub = ch.stream.listen(_onWsData,
-          onDone: _onWsClosed, onError: (_) => _onWsClosed(), cancelOnError: true);
+          onDone: _onWsClosed,
+          onError: (_) => _onWsClosed(),
+          cancelOnError: true);
     } catch (_) {
       _wsChannel = null;
       _scheduleWsReconnect();
@@ -670,7 +843,10 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final msg = jsonDecode(raw as String);
       if (msg is! Map) return;
-      if (msg['type'] == 'ready') { _wsRetry = 0; return; }
+      if (msg['type'] == 'ready') {
+        _wsRetry = 0;
+        return;
+      }
       final positions = msg['positions'];
       if (positions is! List) return;
       // الـ WS يحدّث كائنات الأجهزة (موقع/سرعة/حالة) ثم يحدّث العرض (ماركر + موديل سوا)
@@ -678,7 +854,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
       // أساطيل كبيرة. الحركة ناعمة (forward-only في _buildMarkers).
       bool changed = false;
       for (final p in positions) {
-        if (p is Map && _applyLivePosition(p.cast<String, dynamic>())) changed = true;
+        if (p is Map && _applyLivePosition(p.cast<String, dynamic>()))
+          changed = true;
       }
       if (changed) {
         final now = DateTime.now();
@@ -693,30 +870,59 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  /// آخر وقت التقاط طُبِّق لكل جهاز — يمنع النقاط القديمة من الدوس على الحالة.
+  final Map<int, DateTime> _lastFixApplied = {};
+
   bool _applyLivePosition(Map<String, dynamic> p) {
     final devId = p['deviceId'] is int
         ? p['deviceId'] as int
         : int.tryParse('${p['deviceId']}') ?? 0;
     if (devId == 0) return false;
     DeviceModel? dev;
-    for (final d in _devices) { if (d.traccarId == devId) { dev = d; break; } }
+    for (final d in _devices) {
+      if (d.traccarId == devId) {
+        dev = d;
+        break;
+      }
+    }
     if (dev == null) {
-      for (final d in _inventory) { if (d.traccarId == devId) { dev = d; break; } }
+      for (final d in _inventory) {
+        if (d.traccarId == devId) {
+          dev = d;
+          break;
+        }
+      }
     }
     if (dev == null) return false;
     final lat = (p['latitude'] as num?)?.toDouble();
     final lng = (p['longitude'] as num?)?.toDouble();
     if (lat == null || lng == null || (lat == 0 && lng == 0)) return false;
+    // نقطة أقدم من آخر واحدة طُبِّقت لهذا الجهاز: الجهاز الذي يفقد الاتصال يخزّن
+    // المواقع ويرفعها لاحقًا مخلوطة بالحيّة، فتصل نقطة عمرها ساعة بعد نقطة حديثة
+    // (مرصود فعليًا على أجهزة TK303). نقيس القِدَم بوقت الالتقاط (fixTime) لا بوقت
+    // الوصول، وإلا رجع الماركر للخلف وأظهرت السرعة القديمة «يتحرك» والمركبة واقفة.
+    // Traccar نفسه يفعل المِثل: مؤشّر آخر موقع عنده يتبع أحدث fixTime. والمقارنة
+    // نسبية لكل جهاز فلا تتأثر بأجهزة ساعتها منحرفة.
+    final fixT = DateTime.tryParse('${p['fixTime'] ?? p['deviceTime'] ?? ''}');
+    if (fixT != null) {
+      final prevFix = _lastFixApplied[devId];
+      if (prevFix != null && !fixT.isAfter(prevFix)) return false;
+      _lastFixApplied[devId] = fixT;
+    }
     final spdKmh = ((p['speed'] as num?)?.toDouble() ?? 0) * 1.852;
     dev.lat = lat;
     dev.lng = lng;
     final course = (p['course'] as num?)?.toDouble();
     if (course != null) dev.course = course;
     final attrs = p['attributes'];
-    if (attrs is Map && attrs['ignition'] is bool) dev.ignition = attrs['ignition'] as bool;
-    final pktTime = DateTime.tryParse('${p['serverTime'] ?? p['fixTime'] ?? ''}') ?? DateTime.now();
-    dev.lastSeen = pktTime;                       // أي packet = آخر إرسال بيانات
-    if (spdKmh > 2) dev.lastUpdate = pktTime;     // آخر حركة فقط لو متحرك (يحافظ على «متوقف منذ»)
+    if (attrs is Map && attrs['ignition'] is bool)
+      dev.ignition = attrs['ignition'] as bool;
+    final pktTime =
+        DateTime.tryParse('${p['serverTime'] ?? p['fixTime'] ?? ''}') ??
+            DateTime.now();
+    dev.lastSeen = pktTime; // أي packet = آخر إرسال بيانات
+    if (spdKmh > 2)
+      dev.lastUpdate = pktTime; // آخر حركة فقط لو متحرك (يحافظ على «متوقف منذ»)
     // السرعة والحالة **الحقيقية مباشرة** — بدون debounce. الـ debounce (5ث) كان بيعرض سرعة
     // وهمية ويأخّر الوقوف من غير ما يحل الوميض فعليًا (GT06 بيبعت كل ~10ث فالمهلة بتخلص قبل
     // الرسالة اللي بعدها). العرض الحقيقي أبسط وأدق ومتّسق مع السيرفر والويب.
@@ -744,9 +950,12 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
   void _scheduleWsReconnect() {
     _wsReconnectTimer?.cancel();
     const delays = [2, 4, 8, 15, 30];
-    final delay = Duration(seconds: delays[_wsRetry.clamp(0, delays.length - 1)]);
+    final delay =
+        Duration(seconds: delays[_wsRetry.clamp(0, delays.length - 1)]);
     if (_wsRetry < 10) _wsRetry++;
-    _wsReconnectTimer = Timer(delay, () { if (_wsWanted) _openLiveWs(); });
+    _wsReconnectTimer = Timer(delay, () {
+      if (_wsWanted) _openLiveWs();
+    });
   }
 
   void _disconnectLiveWs() {
@@ -755,12 +964,17 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     _wsReconnectTimer = null;
     _wsSub?.cancel();
     _wsSub = null;
-    try { _wsChannel?.sink.close(); } catch (_) {}
+    try {
+      _wsChannel?.sink.close();
+    } catch (_) {}
     _wsChannel = null;
     _wsRetry = 0;
   }
 
-  void _stopRefreshTimer() { _refreshTimer?.cancel(); _refreshTimer = null; }
+  void _stopRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
 
   int _userRefreshCounter = 0;
 
@@ -769,13 +983,13 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
       final result = await ApiService.getDevices();
       final List raw = result['data'] ?? result['devices'] ?? [];
       final rawMaps = raw.cast<Map<String, dynamic>>();
-      final all  = rawMaps.map((d) => DeviceModel.fromJson(d)).toList();
+      final all = rawMaps.map((d) => DeviceModel.fromJson(d)).toList();
       final devs = all.where((d) => !d.isInventory).toList();
-      final inv  = all.where((d) =>  d.isInventory).toList();
+      final inv = all.where((d) => d.isInventory).toList();
 
       // تحديث كامل: الأجهزة + المخزون (مهم للديلر) + cache دافئ
       if (all.isNotEmpty) {
-        _devices   = devs;
+        _devices = devs;
         _inventory = inv;
         if (_selectedDevice != null) {
           final match = _devices.where((d) => d.id == _selectedDevice!.id);
@@ -812,7 +1026,8 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final result = await ApiService.request('get_profile', {});
       if (result['success'] == true && result['user'] != null) {
-        _currentUser = UserModel.fromJson(result['user'] as Map<String, dynamic>);
+        _currentUser =
+            UserModel.fromJson(result['user'] as Map<String, dynamic>);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_data', jsonEncode(result['user']));
         notifyListeners();
@@ -853,7 +1068,7 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
         _refreshOnResume();
       }
     } else if (state == AppLifecycleState.paused ||
-               state == AppLifecycleState.inactive) {
+        state == AppLifecycleState.inactive) {
       // App going to background - stop timer + live socket to save battery
       _stopRefreshTimer();
       _disconnectLiveWs();
@@ -870,14 +1085,15 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _refreshOnResume() async {
     _resuming = true;
-    ApiService.resetClient(); // اقفل اتصالات keep-alive اللي بوظت أثناء الخلفية → الجلب التالي اتصال جديد (يمنع تعليق 30ث)
+    ApiService
+        .resetClient(); // اقفل اتصالات keep-alive اللي بوظت أثناء الخلفية → الجلب التالي اتصال جديد (يمنع تعليق 30ث)
     _connectLiveWs(); // وصّل الـ WS فوراً بالتوازي مع الجلب — المواقع الحيّة تبدأ أبكر
     notifyListeners();
     try {
-      await _silentRefresh();       // يجلب أحدث الأجهزة ويحدّث الخريطة (السريع/المهم)
+      await _silentRefresh(); // يجلب أحدث الأجهزة ويحدّث الخريطة (السريع/المهم)
     } finally {
-      _resuming = false;            // اطفِ علامة التحميل بمجرد وصول بيانات الأجهزة
-      _resumeSeq++;                 // أعلن اكتمال تحديث الرجوع → الكاميرا تتبع الماركر
+      _resuming = false; // اطفِ علامة التحميل بمجرد وصول بيانات الأجهزة
+      _resumeSeq++; // أعلن اكتمال تحديث الرجوع → الكاميرا تتبع الماركر
       notifyListeners();
     }
     // بيانات المستخدم ثانوية — تشتغل في الخلفية بدون ما تأخّر علامة التحميل
@@ -885,7 +1101,10 @@ class AppProvider extends ChangeNotifier with WidgetsBindingObserver {
     _startRefreshTimer();
   }
 
-  void clearError() { _error = null; notifyListeners(); }
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
 
   @override
   void dispose() {

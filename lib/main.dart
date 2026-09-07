@@ -21,8 +21,8 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
 // Build a notif map (matching get_notifications shape) from FCM data + notification.
 Map<String, dynamic> _notifMapFromData(Map<String, dynamic> data,
     {String? title, String? body}) {
-  int? _i(dynamic v) => int.tryParse(v?.toString() ?? '');
-  double? _d(dynamic v) => double.tryParse(v?.toString() ?? '');
+  int? i(dynamic v) => int.tryParse(v?.toString() ?? '');
+  double? d(dynamic v) => double.tryParse(v?.toString() ?? '');
   return {
     'type': data['type']?.toString(),
     'alarm_subtype': data['alarm_subtype']?.toString(),
@@ -31,11 +31,11 @@ Map<String, dynamic> _notifMapFromData(Map<String, dynamic> data,
     'body': body ?? data['body']?.toString(),
     'event_time': data['event_time']?.toString(),
     'created_at': data['event_time']?.toString(),
-    'traccar_id': _i(data['traccar_id']),
-    'device_id': _i(data['device_id']),
-    'lat': _d(data['lat']),
-    'lng': _d(data['lng']),
-    'speed': _d(data['speed']),
+    'traccar_id': i(data['traccar_id']),
+    'device_id': i(data['device_id']),
+    'lat': d(data['lat']),
+    'lng': d(data['lng']),
+    'speed': d(data['speed']),
   };
 }
 
@@ -300,7 +300,7 @@ class HimayaApp extends StatelessWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -375,7 +375,7 @@ class HimayaApp extends StatelessWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
-      cardTheme: CardThemeData(
+      cardTheme: CardTheme(
         color: card,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -389,7 +389,7 @@ class HimayaApp extends StatelessWidget {
         textColor: Colors.white,
         iconColor: Color(0xFFB0B8C8),
       ),
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         titleTextStyle: const TextStyle(

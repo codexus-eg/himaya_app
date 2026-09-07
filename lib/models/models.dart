@@ -19,6 +19,10 @@ class DeviceModel {
   bool ignition;
   /// المحرك يعمل والمركبة واقفة بلا حركة ≥ دقيقتين (يحسبها السيرفر) — ماركر أصفر
   bool idle;
+  /// هل يرسل هذا الجهاز إشارة ACC أصلًا؟ يحسبها السيرفر (عمود has_ignition).
+  /// false ⇒ نُخفي مربع المحرك بدل أن يظهر «-» بلا معنى: TK303 غالبًا لا يرسله،
+  /// وبعض أجهزة GT06N بسلك كونتاكت غير موصول. الافتراضي true (لا نُخفي بيانات موجودة).
+  final bool hasIgnition;
   final bool charge;
   DateTime? lastUpdate;   // آخر حركة (للـ header «متوقف منذ»)
   DateTime? lastSeen;     // آخر إرسال بيانات حقيقي (أي packet، حتى وقوف)
@@ -56,6 +60,7 @@ class DeviceModel {
     required this.deviceType, required this.status,
     this.lat, this.lng, this.speed, this.battery, this.course,
     this.powerConnected = false, this.ignition = false, this.idle = false, this.charge = false,
+    this.hasIgnition = true,
     this.lastUpdate, this.lastSeen, this.lastMove, this.lastIgnitionOff, this.lastIgnitionOn,
     this.userId, this.userName,
     this.subscriptionType, this.subscriptionEnd, this.activatedAt, this.isInventory = false,
@@ -93,6 +98,7 @@ class DeviceModel {
                       (j['power'] != null && (j['power'] is num) && (j['power'] as num) > 10),
       ignition: _ignCache[id] ?? false,
       idle: j['idle'] == true || j['idle'] == 1,
+      hasIgnition: j['hasIgnition'] != false && j['hasIgnition'] != 0,
       charge: j['charge'] == true || j['charge'] == 1,
       lastUpdate: j['last_update'] != null ? DateTime.tryParse(j['last_update'])
           : j['lastUpdate'] != null ? DateTime.tryParse(j['lastUpdate']) : null,

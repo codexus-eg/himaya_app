@@ -1,0 +1,130 @@
+# اختبار إقلاع iOS على محاكي حقيقي.
+#
+# الغرض: كشف كراش الإقلاع (مثل تسجيل الإضافات مرتين) قبل إرسال النسخة
+# لمراجعة أبل — البناء وحده لا يكشفه لأنه خطأ وقت تشغيل لا ترجمة.
+#
+# يعمل يدويًا (workflow_dispatch) وعند تعديل ملفات iOS فقط، توفيرًا
+# لدقائق macOS (تُحتسب ×10 من حصة الحساب).
+name: iOS Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: "نسخة Flutter (stable أو رقم مثل 3.24.5)"
+        required: false
+        default: "stable"
+  push:
+    paths:
+      - 'ios/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/ios-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تثبيت Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ github.event.inputs.flutter_version || '' }}
+          cache: true
+
+      - name: نسخة الأدوات
+        run: |
+          flutter --version
+          echo "--- Xcode ---"; xcodebuild -version
+
+      - name: حزم Flutter
+        run: flutter pub get
+
+      - name: تحليل ثابت
+        run: flutter analyze lib || echo "::warning::تحليل lib أظهر ملاحظات"
+
+      - name: CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      # بناء للمحاكي: لا يحتاج شهادات ولا مفاتيح أبل
+      - name: بناء iOS (محاكي)
+        run: flutter build ios --simulator --debug
+
+      - name: تشغيل المحاكي
+        run: |
+          DEV=$(xcrun simctl list devices available | grep -m1 "iPhone 1" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "SIM_UDID=$DEV" >> $GITHUB_ENV
+          xcrun simctl boot "$DEV" || true
+          xcrun simctl bootstatus "$DEV" -b
+
+      - name: تثبيت التطبيق وتشغيله
+        run: |
+          APP=$(find build/ios/iphonesimulator -maxdepth 1 -name "*.app" | head -1)
+          echo "التطبيق: $APP"
+          xcrun simctl install "$SIM_UDID" "$APP"
+          xcrun simctl launch "$SIM_UDID" com.himayatrack.app
+
+      # الفحص الحاسم: هل بقي التطبيق حيًّا بعد 20 ثانية؟
+      # كراش الإقلاع يقع خلال ثانيتين، فبقاؤه حيًّا = اجتاز.
+      - name: التحقق من بقاء التطبيق حيًّا
+        run: |
+          sleep 20
+          if xcrun simctl spawn "$SIM_UDID" launchctl list 2>/dev/null | grep -q "com.himayatrack.app"; then
+            echo "✅ التطبيق ما زال يعمل — لا كراش عند الإقلاع"
+          else
+            echo "::error::🔴 التطبيق مات بعد الإقلاع"
+            echo "--- تقارير الأعطال ---"
+            find ~/Library/Logs/DiagnosticReports -name "*.ips" -newermt "-5 minutes" 2>/dev/null | while read f; do
+              echo "=== $f ==="; head -60 "$f"
+            done
+            exit 1
+          fi
+
+      # فحص أخطاء وقت التشغيل التي لا يكشفها البناء: مفتاح الخرائط
+      # المرفوض يظهر هنا فقط (تكرر في أندرويد مرتين)، وكذلك فشل تهيئة Firebase.
+      - name: فحص سجلّ التشغيل (الخرائط وFirebase)
+        if: always()
+        run: |
+          LOG=/tmp/sim.log
+          xcrun simctl spawn "$SIM_UDID" log show --last 3m --style compact > "$LOG" 2>/dev/null || true
+          echo "حجم السجلّ: $(wc -l < "$LOG") سطر"
+
+          echo "--- الخرائط ---"
+          if grep -qi "Google Maps SDK.*[Aa]uthorization failure\|Invalid API key\|ApiKey.*not authorized" "$LOG"; then
+            echo "::error::🔴 مفتاح الخرائط مرفوض على iOS — الخريطة ستظهر فارغة"
+            grep -i -A3 "Google Maps SDK" "$LOG" | head -20
+          elif grep -qi "Google Maps SDK" "$LOG"; then
+            echo "✅ Google Maps SDK حُمّل بلا خطأ تفويض"
+            grep -i "Google Maps SDK" "$LOG" | head -5
+          else
+            echo "⚠️ لا أثر لـGoogle Maps في السجلّ (شاشة الخريطة لم تُفتح — التطبيق يبدأ بشاشة الدخول)"
+          fi
+
+          echo "--- Firebase ---"
+          if grep -qi "Firebase.*error\|FirebaseCore.*fail\|configure.*failed" "$LOG"; then
+            echo "::warning::⚠️ رسائل خطأ من Firebase"
+            grep -i "firebase" "$LOG" | head -10
+          else
+            echo "✅ لا أخطاء Firebase"
+            grep -i "firebase" "$LOG" | head -3
+          fi
+
+          echo "--- استثناءات وأعطال ---"
+          grep -iE "fatal|exception|NSAssert|SIGABRT|crash" "$LOG" | head -10 || echo "✅ لا استثناءات"
+
+      - name: لقطة شاشة (دليل بصري)
+        if: always()
+        run: xcrun simctl io "$SIM_UDID" screenshot /tmp/launch.png || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-smoke-evidence
+          path: |
+            /tmp/launch.png
+            /tmp/sim.log
+            ~/Library/Logs/DiagnosticReports/*.ips
+          if-no-files-found: ignore

@@ -586,6 +586,7 @@ const Map<String, Map<String, String>> _strings = {
   'res_offline':     {'ar': 'الجهاز غير متصل',    'en': 'Device is offline'},
   'res_enter_one_num':{'ar': 'أدخل رقم واحد على الأقل', 'en': 'Enter at least one number'},
   'res_sos_saved':   {'ar': 'تم إرسال وحفظ أرقام الطوارئ بنجاح', 'en': 'Emergency numbers sent and saved'},
+  'res_sos_failed':  {'ar': 'لم تُحفظ أرقام الطوارئ — تحقّق من الاتصال وأعد المحاولة', 'en': 'Emergency numbers were not saved — check your connection and retry'},
   'res_enter_pw':    {'ar': 'يرجى إدخال كلمة المرور', 'en': 'Please enter the password'},
   'res_wrong_pw':    {'ar': 'كلمة المرور غير صحيحة', 'en': 'Incorrect password'},
   'res_speed_pending':{'ar': 'السرعة {s} كم/س - سيُنفَّذ عند الانخفاض عن 20 كم/س', 'en': 'Speed {s} km/h — will execute when below 20 km/h'},
@@ -658,6 +659,10 @@ const Map<String, Map<String, String>> _strings = {
   // alerts list / detail
   'alerts_title':    {'ar': 'التنبيهات',         'en': 'Alerts'},
   'alerts_empty':    {'ar': 'لا توجد تنبيهات',   'en': 'No alerts'},
+  'alerts_load_failed': {'ar': 'تعذّر تحميل التنبيهات — تحقّق من الاتصال', 'en': "Couldn't load alerts — check your connection"},
+  'alerts_off_title': {'ar': 'لم تُفعّل أي تنبيهات', 'en': 'No alerts enabled'},
+  'alerts_off_hint':  {'ar': 'التنبيهات تظهر هنا بعد تفعيلها من إعدادات الجهاز ← التنبيهات',
+                       'en': 'Alerts appear here once enabled from Device settings → Alerts'},
   'refresh':         {'ar': 'تحديث',            'en': 'Refresh'},
   'alert_detail':    {'ar': 'تفاصيل التنبيه',    'en': 'Alert details'},
   'ad_type':         {'ar': 'نوع التنبيه',       'en': 'Alert type'},
@@ -706,6 +711,10 @@ const Map<String, Map<String, String>> _strings = {
   'dash_transfer_card':    {'ar': 'تحويل البطاقة',      'en': 'Transfer cards'},
   'dash_dealer_req':       {'ar': 'الديلر *',          'en': 'Dealer *'},
   'dash_search_dealer':    {'ar': 'ابحث باسم الديلر...', 'en': 'Search by dealer name...'},
+  // الديلر لا يحوّل إلا لموزّعيه — تسميته «ديلر» كانت تُوهمه بأنه يحوّل لديلر آخر
+  'dash_subdealer_req':    {'ar': 'الموزع *',          'en': 'Sub-dealer *'},
+  'dash_search_subdealer': {'ar': 'ابحث باسم الموزع...', 'en': 'Search by sub-dealer name...'},
+  'dash_select_sub_first': {'ar': 'اختر الموزع أولاً',  'en': 'Select a sub-dealer first'},
   'dash_new_annual_sub':   {'ar': 'اشتراك جديد سنوي',   'en': 'New annual sub'},
   'dash_new_lifetime_sub': {'ar': 'اشتراك مدى الحياة',  'en': 'New lifetime sub'},
   'dash_renew_lifetime':   {'ar': 'تجديد مدى الحياة',   'en': 'Renew lifetime'},
@@ -778,6 +787,7 @@ const Map<String, Map<String, String>> _strings = {
   'ae_del_group_q':  {'ar': 'حذف المجموعة؟ الأجهزة سترجع بدون مجموعة والمواعيد الخاصة بها ستُلغى.',
                       'en': 'Delete group? Its devices become ungrouped and its times are removed.'},
   'ae_saved':        {'ar': 'تم الحفظ',          'en': 'Saved'},
+  'ae_save_failed':  {'ar': 'لم يتم الحفظ — تحقّق من الاتصال', 'en': 'Not saved — check your connection'},
   'ae_clear_times':  {'ar': 'إلغاء المواعيد',    'en': 'Clear times'},
   'ae_dup_group':    {'ar': 'الاسم مستخدم بالفعل', 'en': 'Name already used'},
 };

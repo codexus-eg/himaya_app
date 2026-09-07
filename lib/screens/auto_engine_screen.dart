@@ -91,7 +91,9 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
   Map<String, dynamic>? _ruleFor({required bool all, int groupId = 0}) {
     for (final r in _rules) {
       if (all && r['scope'] == 'all') return r;
-      if (!all && r['scope'] == 'group' && (r['group_id'] as num?)?.toInt() == groupId) return r;
+      if (!all &&
+          r['scope'] == 'group' &&
+          (r['group_id'] as num?)?.toInt() == groupId) return r;
     }
     return null;
   }
@@ -124,7 +126,8 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
     if (t == null) return tr('ae_not_set');
     final h12 = t.hour % 12 == 0 ? 12 : t.hour % 12;
     final mm = t.minute.toString().padLeft(2, '0');
-    final suffix = I18n.isAr ? (t.hour < 12 ? 'ص' : 'م') : (t.hour < 12 ? 'AM' : 'PM');
+    final suffix =
+        I18n.isAr ? (t.hour < 12 ? 'ص' : 'م') : (t.hour < 12 ? 'AM' : 'PM');
     return '$h12:$mm $suffix';
   }
 
@@ -137,12 +140,14 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
     String? stop,
     String? start,
   }) async {
-    final r = await ApiService.request('save_auto_rule', _body({
-      'scope': all ? 'all' : 'group',
-      if (!all) 'group_id': groupId,
-      'stop_time': stop ?? '',
-      'start_time': start ?? '',
-    }));
+    final r = await ApiService.request(
+        'save_auto_rule',
+        _body({
+          'scope': all ? 'all' : 'group',
+          if (!all) 'group_id': groupId,
+          'stop_time': stop ?? '',
+          'start_time': start ?? '',
+        }));
     if (r['success'] == true) {
       _toast(tr('ae_saved'));
       await _load();
@@ -158,7 +163,9 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
   }) async {
     final rule = _ruleFor(all: all, groupId: groupId);
     // الأقواس ضرورية: `? x?['k'] :` يلتبس على محلّل Dart بين الشرطي و null-aware
-    final cur = _parse(isStop ? (rule?['stop_time'] as String?) : (rule?['start_time'] as String?));
+    final cur = _parse(isStop
+        ? (rule?['stop_time'] as String?)
+        : (rule?['start_time'] as String?));
     final picked = await showTimePicker(
       context: context,
       initialTime: cur ?? TimeOfDay(hour: isStop ? 22 : 6, minute: 0),
@@ -184,7 +191,8 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
 
   // ── المجموعات ─────────────────────────────────────────────────────────────
   Future<void> _groupDialog({Map<String, dynamic>? existing}) async {
-    final ctrl = TextEditingController(text: existing?['name'] as String? ?? '');
+    final ctrl =
+        TextEditingController(text: existing?['name'] as String? ?? '');
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => Directionality(
@@ -204,23 +212,28 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(tr('cancel'), style: const TextStyle(fontFamily: 'Cairo'))),
+                child: Text(tr('cancel'),
+                    style: const TextStyle(fontFamily: 'Cairo'))),
             ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-                child: Text(tr('save'), style: const TextStyle(fontFamily: 'Cairo'))),
+                child: Text(tr('save'),
+                    style: const TextStyle(fontFamily: 'Cairo'))),
           ],
         ),
       ),
     );
     if (name == null || name.isEmpty) return;
-    final r = await ApiService.request('save_device_group', _body({
-      if (existing != null) 'id': existing['id'],
-      'name': name,
-    }));
+    final r = await ApiService.request(
+        'save_device_group',
+        _body({
+          if (existing != null) 'id': existing['id'],
+          'name': name,
+        }));
     if (r['success'] == true) {
       await _load();
     } else {
-      _toast(r['error'] == 'duplicate' ? tr('ae_dup_group') : tr('error'), bad: true);
+      _toast(r['error'] == 'duplicate' ? tr('ae_dup_group') : tr('error'),
+          bad: true);
     }
   }
 
@@ -232,11 +245,13 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
         child: AlertDialog(
           title: Text(g['name'] as String? ?? '',
               style: const TextStyle(fontFamily: 'Cairo', fontSize: 16)),
-          content: Text(tr('ae_del_group_q'), style: const TextStyle(fontFamily: 'Cairo')),
+          content: Text(tr('ae_del_group_q'),
+              style: const TextStyle(fontFamily: 'Cairo')),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: Text(tr('cancel'), style: const TextStyle(fontFamily: 'Cairo'))),
+                child: Text(tr('cancel'),
+                    style: const TextStyle(fontFamily: 'Cairo'))),
             TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 child: Text(tr('delete'),
@@ -246,7 +261,8 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
       ),
     );
     if (ok != true) return;
-    final r = await ApiService.request('delete_device_group', _body({'id': g['id']}));
+    final r =
+        await ApiService.request('delete_device_group', _body({'id': g['id']}));
     if (r['success'] == true) {
       await _load();
     } else {
@@ -279,15 +295,29 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
     final removed = selected.difference(result).toList();
     if (added.isEmpty && removed.isEmpty) return;
 
+    // يتحكم في قطع المحرك: «تم الحفظ» بلا تحقّق تعني جهازًا يُقطع أو لا يُقطع
+    // خلافًا لما يظنّه المالك. والسيرفر يردّ success مع updated=0 عند صدّ الصلاحية.
+    bool ok = true;
+    String? err;
     if (added.isNotEmpty) {
-      await ApiService.request(
+      final r = await ApiService.request(
           'assign_device_group', _body({'group_id': gid, 'device_ids': added}));
+      if (r['success'] != true ||
+          (r['updated'] is num && (r['updated'] as num) <= 0)) {
+        ok = false;
+        err = r['error'] as String?;
+      }
     }
-    if (removed.isNotEmpty) {
-      await ApiService.request(
+    if (ok && removed.isNotEmpty) {
+      final r = await ApiService.request(
           'assign_device_group', _body({'group_id': 0, 'device_ids': removed}));
+      if (r['success'] != true ||
+          (r['updated'] is num && (r['updated'] as num) <= 0)) {
+        ok = false;
+        err = r['error'] as String?;
+      }
     }
-    _toast(tr('ae_saved'));
+    _toast(ok ? tr('ae_saved') : (err ?? tr('ae_save_failed')), bad: !ok);
     await _load();
   }
 
@@ -304,11 +334,15 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
           children: [
             Text(tr('ae_title'),
                 style: const TextStyle(
-                    fontFamily: 'Cairo', fontSize: 15, fontWeight: FontWeight.w600)),
+                    fontFamily: 'Cairo',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
             if (widget.subtitle != null && widget.subtitle!.isNotEmpty)
               Text(widget.subtitle!,
                   style: const TextStyle(
-                      fontFamily: 'Cairo', fontSize: 11, color: Colors.white70)),
+                      fontFamily: 'Cairo',
+                      fontSize: 11,
+                      color: Colors.white70)),
           ],
         ),
       ),
@@ -344,7 +378,9 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
                     Center(
                       child: Text(tr('ae_empty'),
                           style: const TextStyle(
-                              fontFamily: 'Cairo', color: Colors.grey, fontSize: 13)),
+                              fontFamily: 'Cairo',
+                              color: Colors.grey,
+                              fontSize: 13)),
                     ),
                   ],
                 ],
@@ -357,13 +393,15 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-            color: const Color(0x1AC41E3A), borderRadius: BorderRadius.circular(10)),
+            color: const Color(0x1AC41E3A),
+            borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
           const Icon(Icons.error_outline, color: _red, size: 18),
           const SizedBox(width: 8),
           Expanded(
               child: Text(_error!,
-                  style: const TextStyle(fontFamily: 'Cairo', fontSize: 12, color: _red))),
+                  style: const TextStyle(
+                      fontFamily: 'Cairo', fontSize: 12, color: _red))),
           TextButton(
               onPressed: _load,
               child: Text(tr('retry'),
@@ -374,14 +412,18 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
   Widget _hintCard() => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: const Color(0x141565C0), borderRadius: BorderRadius.circular(10)),
+            color: const Color(0x141565C0),
+            borderRadius: BorderRadius.circular(10)),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Icon(Icons.info_outline, size: 17, color: _blue),
           const SizedBox(width: 8),
           Expanded(
               child: Text(tr('ae_hint'),
                   style: const TextStyle(
-                      fontFamily: 'Cairo', fontSize: 11.5, height: 1.5, color: _blue))),
+                      fontFamily: 'Cairo',
+                      fontSize: 11.5,
+                      height: 1.5,
+                      color: _blue))),
         ]),
       );
 
@@ -389,7 +431,8 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
     final gid = all ? 0 : (group!['id'] as num).toInt();
     final rule = _ruleFor(all: all, groupId: gid);
     final count = _countFor(all: all, groupId: gid);
-    final title = all ? tr('ae_all_devices') : (group!['name'] as String? ?? '');
+    final title =
+        all ? tr('ae_all_devices') : (group!['name'] as String? ?? '');
     final active = rule != null;
 
     return Container(
@@ -397,7 +440,9 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-            color: active ? _green.withOpacity(.45) : Colors.grey.withOpacity(.25)),
+            color: active
+                ? _green.withValues(alpha: .45)
+                : Colors.grey.withValues(alpha: .25)),
       ),
       child: Column(children: [
         // الرأس
@@ -413,10 +458,14 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
                 children: [
                   Text(title,
                       style: const TextStyle(
-                          fontFamily: 'Cairo', fontSize: 14, fontWeight: FontWeight.w700)),
+                          fontFamily: 'Cairo',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700)),
                   Text(tr('ae_devices_n', {'n': '$count'}),
                       style: const TextStyle(
-                          fontFamily: 'Cairo', fontSize: 11, color: Colors.grey)),
+                          fontFamily: 'Cairo',
+                          fontSize: 11,
+                          color: Colors.grey)),
                 ],
               ),
             ),
@@ -442,15 +491,18 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
                   value: _fmt(rule?['stop_time'] as String?),
                   icon: Icons.power_settings_new,
                   color: _red,
-                  onTap: () => _pickTime(all: all, groupId: gid, isStop: true))),
-          Container(width: 1, height: 46, color: Colors.grey.withOpacity(.2)),
+                  onTap: () =>
+                      _pickTime(all: all, groupId: gid, isStop: true))),
+          Container(
+              width: 1, height: 46, color: Colors.grey.withValues(alpha: .2)),
           Expanded(
               child: _timeTile(
                   label: tr('ae_start_time'),
                   value: _fmt(rule?['start_time'] as String?),
                   icon: Icons.lock_open,
                   color: _green,
-                  onTap: () => _pickTime(all: all, groupId: gid, isStop: false))),
+                  onTap: () =>
+                      _pickTime(all: all, groupId: gid, isStop: false))),
         ]),
         // التذييل
         Padding(
@@ -460,7 +512,9 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
               Expanded(
                   child: Text(tr('ae_all_hint'),
                       style: const TextStyle(
-                          fontFamily: 'Cairo', fontSize: 10, color: Colors.grey)))
+                          fontFamily: 'Cairo',
+                          fontSize: 10,
+                          color: Colors.grey)))
             else
               Expanded(
                 child: Align(
@@ -469,16 +523,19 @@ class _AutoEngineScreenState extends State<AutoEngineScreen> {
                     onPressed: () => _pickDevices(group!),
                     icon: const Icon(Icons.checklist, size: 16),
                     label: Text(tr('ae_pick_devices'),
-                        style: const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
+                        style:
+                            const TextStyle(fontFamily: 'Cairo', fontSize: 12)),
                     style: TextButton.styleFrom(
-                        foregroundColor: _blue, visualDensity: VisualDensity.compact),
+                        foregroundColor: _blue,
+                        visualDensity: VisualDensity.compact),
                   ),
                 ),
               ),
             if (active)
               TextButton(
                 onPressed: () => _clearTimes(all: all, groupId: gid),
-                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                style:
+                    TextButton.styleFrom(visualDensity: VisualDensity.compact),
                 child: Text(tr('ae_clear_times'),
                     style: const TextStyle(
                         fontFamily: 'Cairo', fontSize: 11, color: Colors.grey)),
@@ -572,12 +629,15 @@ class _DevicePickerState extends State<_DevicePicker> {
         foregroundColor: Colors.white,
         title: Text(widget.title,
             style: const TextStyle(
-                fontFamily: 'Cairo', fontSize: 15, fontWeight: FontWeight.w600)),
+                fontFamily: 'Cairo',
+                fontSize: 15,
+                fontWeight: FontWeight.w600)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, _sel),
             child: Text(tr('save'),
-                style: const TextStyle(fontFamily: 'Cairo', color: Colors.white)),
+                style:
+                    const TextStyle(fontFamily: 'Cairo', color: Colors.white)),
           ),
         ],
       ),
@@ -592,7 +652,8 @@ class _DevicePickerState extends State<_DevicePicker> {
               isDense: true,
               hintText: tr('search'),
               hintStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ),
@@ -602,7 +663,8 @@ class _DevicePickerState extends State<_DevicePicker> {
             itemBuilder: (_, i) {
               final d = list[i];
               final id = (d['id'] as num).toInt();
-              final gid = d['group_id'] == null ? null : (d['group_id'] as num).toInt();
+              final gid =
+                  d['group_id'] == null ? null : (d['group_id'] as num).toInt();
               // جهاز في مجموعة أخرى: يُنقل عند الاختيار (مجموعة واحدة لكل جهاز)
               final inOther = gid != null && gid != widget.groupId;
               return CheckboxListTile(
@@ -620,7 +682,9 @@ class _DevicePickerState extends State<_DevicePicker> {
                 subtitle: inOther
                     ? Text(_groupName(gid),
                         style: const TextStyle(
-                            fontFamily: 'Cairo', fontSize: 10, color: Color(0xFFF59E0B)))
+                            fontFamily: 'Cairo',
+                            fontSize: 10,
+                            color: Color(0xFFF59E0B)))
                     : null,
               );
             },
