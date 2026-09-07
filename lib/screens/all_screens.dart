@@ -164,7 +164,7 @@ class _DeviceRow extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                    color: dotColor.withValues(alpha: 0.1),
+                    color: dotColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.directions_car_outlined,
                     color: dotColor, size: 16)),
