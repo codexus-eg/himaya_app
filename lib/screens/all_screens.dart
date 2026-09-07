@@ -598,7 +598,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                        color: const Color(0xFFC41E3A).withValues(alpha: 0.3),
+                        color: const Color(0xFFC41E3A).withOpacity(0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4))
                   ],
@@ -623,7 +623,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                           width: 36,
                           height: 4,
                           decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.4),
+                              color: Colors.white.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(2)),
                         )),
                         const Spacer(),
@@ -639,7 +639,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                               avatarUrl: _avatarOverride ?? u.avatarUrl,
                               initials: u.initials,
                               radius: 22,
-                              bgColor: Colors.white.withValues(alpha: 0.2),
+                              bgColor: Colors.white.withOpacity(0.2),
                             ),
                             Positioned(
                                 bottom: 0,
@@ -708,7 +708,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12)),
                           child: Text(badgeLabel,
                               style: const TextStyle(
@@ -796,8 +796,8 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                  color: const Color(0xFFF59E0B)
-                                      .withValues(alpha: 0.2),
+                                  color:
+                                      const Color(0xFFF59E0B).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(6)),
                               child: const Icon(Icons.edit,
                                   size: 14, color: Color(0xFFF59E0B)),
@@ -1502,7 +1502,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: .12),
+                          color: Colors.grey.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8)),
                       child: Text(tr('cl_apikey_none'),
                           style: cairo.copyWith(fontSize: 13)),
@@ -1511,11 +1511,10 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: .12),
+                        color: Colors.grey.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color:
-                                const Color(0xFF0D9488).withValues(alpha: .4)),
+                            color: const Color(0xFF0D9488).withOpacity(0.4)),
                       ),
                       child: Row(children: [
                         Expanded(
@@ -1644,7 +1643,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: .35),
+                      color: Colors.grey.withOpacity(0.35),
                       borderRadius: BorderRadius.circular(2))),
               Text(tr('cl_add_user_under', {'name': widget.user.fullName}),
                   style: cairo.copyWith(
@@ -2694,11 +2693,10 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                        color: const Color(0xFFC41E3A).withValues(alpha: 0.1),
+                        color: const Color(0xFFC41E3A).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color: const Color(0xFFC41E3A)
-                                .withValues(alpha: 0.4))),
+                            color: const Color(0xFFC41E3A).withOpacity(0.4))),
                     child: Row(children: [
                       const Icon(Icons.check_circle,
                           size: 16, color: Color(0xFFC41E3A)),
@@ -2730,7 +2728,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                       child: Text(I18n.isAr ? 'لا توجد نتائج' : 'No results',
                           style: TextStyle(
                               fontFamily: 'Cairo',
-                              color: onSurface.withValues(alpha: 0.4))),
+                              color: onSurface.withOpacity(0.4))),
                     )
                   else
                     ConstrainedBox(
@@ -2755,13 +2753,13 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                             dense: true,
                             selected: isSelected,
                             selectedTileColor:
-                                const Color(0xFF1565C0).withValues(alpha: 0.12),
+                                const Color(0xFF1565C0).withOpacity(0.12),
                             onTap: () => setS(() => selectedId = u.id),
                             leading: isSelected
                                 ? const Icon(Icons.check_circle,
                                     color: Color(0xFF1565C0))
                                 : Icon(Icons.radio_button_unchecked,
-                                    color: onSurface.withValues(alpha: 0.4)),
+                                    color: onSurface.withOpacity(0.4)),
                             title: Text(u.fullName,
                                 style: TextStyle(
                                     fontFamily: 'Cairo',
@@ -2771,7 +2769,7 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                  color: badgeColor.withValues(alpha: 0.15),
+                                  color: badgeColor.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(10)),
                               child: Text(badgeLabel,
                                   style: TextStyle(
@@ -3051,7 +3049,7 @@ class _BalChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(6)),
         child: Column(children: [
           Text(value.toString(),
@@ -3086,7 +3084,7 @@ class _StatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(10)),
       child: Column(children: [
         Text(value,
@@ -3121,9 +3119,9 @@ class _ActionBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, color: color, size: 14),
@@ -3357,9 +3355,9 @@ class _MiniBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withValues(alpha: 0.3))),
+            border: Border.all(color: color.withOpacity(0.3))),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 11, color: color),
           const SizedBox(width: 3),
@@ -3406,7 +3404,7 @@ class _SubUserRow extends StatelessWidget {
         child: Row(children: [
           CircleAvatar(
               radius: 16,
-              backgroundColor: badgeColor.withValues(alpha: 0.15),
+              backgroundColor: badgeColor.withOpacity(0.15),
               child: Text(user.initials,
                   style: TextStyle(
                       color: badgeColor,
@@ -3431,7 +3429,7 @@ class _SubUserRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-                color: badgeColor.withValues(alpha: 0.1),
+                color: badgeColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10)),
             child: Text(badgeLabel,
                 style: TextStyle(
@@ -3581,8 +3579,7 @@ class _HierarchyRow extends StatelessWidget {
         ),
         child: Row(children: [
           if (level > 0) ...[
-            Container(
-                width: 2, height: 30, color: badgeColor.withValues(alpha: 0.3)),
+            Container(width: 2, height: 30, color: badgeColor.withOpacity(0.3)),
             const SizedBox(width: 8),
           ],
           _UserAvatar(
@@ -3619,7 +3616,7 @@ class _HierarchyRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-                color: badgeColor.withValues(alpha: 0.1),
+                color: badgeColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10)),
             child: Text(badgeLabel,
                 style: TextStyle(
@@ -3705,7 +3702,7 @@ class _ClientRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.1),
+                  color: badgeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(14)),
               child: Text(badgeLabel,
                   style: TextStyle(
@@ -4149,12 +4146,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ? Theme.of(context)
                         .colorScheme
                         .errorContainer
-                        .withValues(alpha: 0.15)
+                        .withOpacity(0.15)
                     : Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(11),
                 border: Border.all(
                     color: unread
-                        ? color.withValues(alpha: 0.25)
+                        ? color.withOpacity(0.25)
                         : Theme.of(context).dividerColor),
               ),
               child:
@@ -4162,7 +4159,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
+                      color: color.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(9)),
                   child: Icon(icon, size: 18, color: color),
                 ),
@@ -4365,8 +4362,7 @@ class _AccountScreenState extends State<AccountScreen> {
                           avatarUrl: _localAvatarUrl ?? user?.avatarUrl,
                           initials: user?.initials ?? 'U',
                           radius: 38,
-                          bgColor:
-                              _avatarBg ?? Colors.white.withValues(alpha: 0.2)),
+                          bgColor: _avatarBg ?? Colors.white.withOpacity(0.2)),
                       Positioned(
                           bottom: 0,
                           right: 0,
@@ -5944,7 +5940,7 @@ class _ProviderRow extends StatelessWidget {
       decoration: BoxDecoration(
           color: const Color(0xFF111827),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06))),
+          border: Border.all(color: Colors.white.withOpacity(0.06))),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -6056,7 +6052,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
+                        color: Colors.black.withOpacity(0.15),
                         blurRadius: 20,
                         offset: const Offset(0, 8))
                   ]),
@@ -6697,7 +6693,7 @@ class _FilterTabs extends StatelessWidget {
                       style: TextStyle(
                           fontSize: 8,
                           color: isOn
-                              ? Colors.white.withValues(alpha: 0.8)
+                              ? Colors.white.withOpacity(0.8)
                               : const Color(0xFF8892A4),
                           fontFamily: 'Cairo')),
                 ]),
@@ -6882,7 +6878,7 @@ class _ActionCard extends StatelessWidget {
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurface
-                                  .withValues(alpha: 0.4),
+                                  .withOpacity(0.4),
                               fontSize: 14)),
                     ]),
             ),
@@ -6929,7 +6925,7 @@ class _HeaderStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final grad =
-        _gradients[color.toARGB32()] ?? [color.withValues(alpha: 0.7), color];
+        _gradients[color.toARGB32()] ?? [color.withOpacity(0.7), color];
     return Expanded(
         child: Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -6941,7 +6937,7 @@ class _HeaderStatTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-                color: grad.last.withValues(alpha: 0.3),
+                color: grad.last.withOpacity(0.3),
                 blurRadius: 6,
                 offset: const Offset(0, 2))
           ]),
@@ -6980,12 +6976,12 @@ class _ProfileBalTile extends StatelessWidget {
         child: Container(
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 3),
       decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [
-            color.withValues(alpha: 0.55),
-            color.withValues(alpha: 0.25)
-          ], begin: Alignment.topRight, end: Alignment.bottomLeft),
+          gradient: LinearGradient(
+              colors: [color.withOpacity(0.55), color.withOpacity(0.25)],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15))),
+          border: Border.all(color: Colors.white.withOpacity(0.15))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(
             width: 28,
@@ -7881,7 +7877,7 @@ class _EditDeviceSheetState extends State<_EditDeviceSheet>
             style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 11,
-                color: onS.withValues(alpha: 0.65))),
+                color: onS.withOpacity(0.65))),
         const SizedBox(height: 4),
         TextField(
           controller: c,
@@ -7943,21 +7939,21 @@ class _EditDeviceSheetState extends State<_EditDeviceSheet>
             style: TextStyle(
                 fontFamily: 'Cairo',
                 fontSize: 11,
-                color: onS.withValues(alpha: 0.65))),
+                color: onS.withOpacity(0.65))),
         const SizedBox(height: 4),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
             color: surf,
-            border: Border.all(color: onS.withValues(alpha: 0.2)),
+            border: Border.all(color: onS.withOpacity(0.2)),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(v.isEmpty ? '-' : v,
               style: TextStyle(
                   fontFamily: 'Cairo',
                   fontSize: 13,
-                  color: onS.withValues(alpha: 0.75))),
+                  color: onS.withOpacity(0.75))),
         ),
       ]),
     );
@@ -8044,8 +8040,8 @@ class _EditDeviceSheetState extends State<_EditDeviceSheet>
                                                   style: TextStyle(
                                                       fontFamily: 'Cairo',
                                                       fontSize: 11,
-                                                      color: onS.withValues(
-                                                          alpha: 0.65))),
+                                                      color: onS
+                                                          .withOpacity(0.65))),
                                               const SizedBox(height: 4),
                                               child
                                             ]));
@@ -8198,8 +8194,7 @@ class _EditDeviceSheetState extends State<_EditDeviceSheet>
                                               decoration: BoxDecoration(
                                                   color: s
                                                       ? const Color(0xFF1565C0)
-                                                          .withValues(
-                                                              alpha: 0.15)
+                                                          .withOpacity(0.15)
                                                       : surf,
                                                   borderRadius:
                                                       BorderRadius.circular(10),
@@ -8319,8 +8314,7 @@ class _EditDeviceSheetState extends State<_EditDeviceSheet>
                                                       color: Theme.of(ctx)
                                                           .colorScheme
                                                           .primary
-                                                          .withValues(
-                                                              alpha: 0.08),
+                                                          .withOpacity(0.08),
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               8),
@@ -8856,7 +8850,7 @@ class _DeviceGeofenceTabState extends State<_DeviceGeofenceTab> {
       ]),
       if (_busy)
         Container(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             child: const Center(child: CircularProgressIndicator())),
     ]);
   }
@@ -9265,7 +9259,7 @@ class _GeofenceDrawScreenState extends State<_GeofenceDrawScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
+                          color: Colors.black.withOpacity(0.7),
                           borderRadius: BorderRadius.circular(8)),
                       child: Text(hint,
                           textAlign: TextAlign.center,
