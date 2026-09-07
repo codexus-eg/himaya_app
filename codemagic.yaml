@@ -8,11 +8,12 @@ workflows:
       app_store_connect: noourway
 
     environment:
-      # تحديد نسخة فلاتر بالضبط لتطابق الكود وتمنع أخطاء الـ Theme
+      # تحديد نسخة فلاتر لتطابق الكود وتمنع الأخطاء الوهمية
       flutter: 3.24.5
       xcode: latest
       cocoapods: default
 
+      # التوقيع التلقائي
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.himayatrack.app
@@ -20,7 +21,7 @@ workflows:
     scripts:
       - name: Set iOS deployment target
         script: |
-          # رفع الإصدار لـ 16.0 بناءً على طلب المبرمج لدعم mobile_scanner
+          # رفع الإصدار لـ 16.0 لدعم mobile_scanner
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' ios/Runner.xcodeproj/project.pbxproj
 
       - name: Clean and Get Dependencies
@@ -32,6 +33,9 @@ workflows:
           rm -rf Pods Podfile.lock
           pod install --repo-update
           cd ..
+
+      - name: Setup Code Signing
+        script: xcode-project use-profiles
 
       - name: Build IPA
         script: |
