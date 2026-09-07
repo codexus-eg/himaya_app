@@ -1777,14 +1777,8 @@ class _UserProfileSheetState extends State<_UserProfileSheet>
                     controller: nameCtrl,
                     decoration: InputDecoration(labelText: tr('cl_dev_name'))),
                 const SizedBox(height: 10),
-                ModelPickerField(
-                  value: deviceType,
-                  label: tr('cl_dev_type'),
-                  onChanged: (v) => setS(() => deviceType = v),
-                ),
-                const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  initialValue: subType,
+                  value: subType, // تم تغيير initialValue إلى value هنا
                   decoration: InputDecoration(labelText: tr('cl_sub_type')),
                   items: [
                     DropdownMenuItem(
