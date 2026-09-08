@@ -147,10 +147,16 @@ void main() async {
   await FirebaseMessaging.instance
       .requestPermission(alert: true, badge: true, sound: true);
 
-  // Save FCM token
-  String? token = await FirebaseMessaging.instance.getToken();
-  if (token != null) {
-    ApiService.saveFcmToken(token);
+  // Save FCM token (معزول داخل try-catch لكي لا يوقف التطبيق في الـ iOS)
+  try {
+    // نطلب من أبل التوكن الخاص بها أولاً لتجنب الكراش
+    await FirebaseMessaging.instance.getAPNSToken();
+    String? token = await FirebaseMessaging.instance.getToken();
+    if (token != null) {
+      ApiService.saveFcmToken(token);
+    }
+  } catch (e) {
+    debugPrint('FCM Token Error: $e');
   }
 
   // Re-save token whenever Firebase rotates it (reinstall/update/restore).
