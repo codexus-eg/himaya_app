@@ -21,7 +21,9 @@ class ApiService {
   // لأن الاتصالات بتبوظ عند تبديل الشبكة/الرجوع من الخلفية فتسبّب تعليق الطلبات
   // لحد الـ timeout (تأخير 30ث-2د في تحديث الخريطة). reset = الطلب التالي اتصال جديد.
   static void resetClient() {
-    try { _client.close(); } catch (_) {}
+    try {
+      _client.close();
+    } catch (_) {}
     _client = http.Client();
   }
 
@@ -35,7 +37,8 @@ class ApiService {
     return prefs.getString('refresh_token');
   }
 
-  static Future<void> saveTokens({required String token, required String refreshToken}) async {
+  static Future<void> saveTokens(
+      {required String token, required String refreshToken}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
     await prefs.setString('refresh_token', refreshToken);
@@ -61,11 +64,18 @@ class ApiService {
       final headers = <String, String>{
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Connection':
+            'close', // <-- هذا السطر يمنع مشكلة انقطاع الاتصال 0 bytes written في iOS
       };
 
       if (requiresAuth) {
         final token = await getToken();
-        if (token == null) return {'success': false, 'error': tr('api_unauthorized'), 'code': 401};
+        if (token == null)
+          return {
+            'success': false,
+            'error': tr('api_unauthorized'),
+            'code': 401
+          };
         headers['Authorization'] = 'Bearer $token';
       }
 
@@ -88,22 +98,35 @@ class ApiService {
       if (response.statusCode == 401 && requiresAuth && !isRetry) {
         final rr = await _refreshToken();
         if (rr == 'ok') {
-          return _request(action: action, body: body, requiresAuth: requiresAuth, isRetry: true, timeout: timeout);
+          return _request(
+              action: action,
+              body: body,
+              requiresAuth: requiresAuth,
+              isRetry: true,
+              timeout: timeout);
         }
         if (rr == 'network') {
           // لم نصل للسيرفر: الجلسة قد تكون سليمة تمامًا — لا تُمسح
-          return {'success': false, 'error': tr('api_no_internet'), 'network': true};
+          return {
+            'success': false,
+            'error': tr('api_no_internet'),
+            'network': true
+          };
         }
         await clearTokens();
         return {'success': false, 'error': tr('api_session_exp'), 'code': 401};
       }
 
       return data;
-    // network:true => عطل اتصال لا رفض من السيرفر. من يقرأه يمتنع عن مسح
-    // الجلسة: التوكن على السيرفر صالح لسنة، والفشل هنا مؤقت.
+      // network:true => عطل اتصال لا رفض من السيرفر. من يقرأه يمتنع عن مسح
+      // الجلسة: التوكن على السيرفر صالح لسنة، والفشل هنا مؤقت.
     } on SocketException {
       resetClient(); // اتصال ميت → اعمل client جديد للطلب التالي
-      return {'success': false, 'error': tr('api_no_internet'), 'network': true};
+      return {
+        'success': false,
+        'error': tr('api_no_internet'),
+        'network': true
+      };
     } on HttpException {
       return {'success': false, 'error': tr('api_server_err'), 'network': true};
     } on FormatException {
@@ -121,13 +144,19 @@ class ApiService {
   // كانت ترجع false في الحالتين، فتُمسح جلسة سليمة عند أول عثرة نت.
   static Future<String> _refreshToken() async {
     final refresh = await getRefreshToken();
-    if (refresh == null) return 'rejected';   // لا يوجد ما نجدّد به
+    if (refresh == null) return 'rejected'; // لا يوجد ما نجدّد به
     try {
-      final response = await _client.post(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'action': 'refresh_token', 'refresh_token': refresh}),
-      ).timeout(const Duration(seconds: timeoutSeconds));
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Connection': 'close'
+            }, // إغلاق الاتصال هنا أيضاً
+            body: jsonEncode(
+                {'action': 'refresh_token', 'refresh_token': refresh}),
+          )
+          .timeout(const Duration(seconds: timeoutSeconds));
       // 5xx = عطل مؤقت في السيرفر لا حكم على التوكن
       if (response.statusCode >= 500) return 'network';
       Map? data;
@@ -135,12 +164,14 @@ class ApiService {
         final d = jsonDecode(response.body);
         if (d is Map) data = d;
       } catch (_) {}
-      if (data == null) return 'network';     // رد غير مفهوم (صفحة خطأ من وسيط)
+      if (data == null) return 'network'; // رد غير مفهوم (صفحة خطأ من وسيط)
       if (data['success'] == true && data['token'] != null) {
-        await saveTokens(token: data['token'], refreshToken: data['refresh_token'] ?? refresh);
+        await saveTokens(
+            token: data['token'],
+            refreshToken: data['refresh_token'] ?? refresh);
         return 'ok';
       }
-      return 'rejected';                      // ردّ وفهمناه: التوكن غير صالح
+      return 'rejected'; // ردّ وفهمناه: التوكن غير صالح
     } on TimeoutException {
       resetClient();
       return 'network';
@@ -183,14 +214,16 @@ class ApiService {
     var id = prefs.getString('himaya_device_id');
     if (id == null || id.isEmpty) {
       final r = Random.secure();
-      id = List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+      id = List.generate(
+          16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
       await prefs.setString('himaya_device_id', id);
     }
     _deviceId = id;
     return id;
   }
 
-  static Future<Map<String, dynamic>> login({required String username, required String password}) async {
+  static Future<Map<String, dynamic>> login(
+      {required String username, required String password}) async {
     final result = await _request(
       action: 'login',
       body: {
@@ -202,7 +235,8 @@ class ApiService {
       requiresAuth: false,
     );
     if (result['success'] == true) {
-      await saveTokens(token: result['token'], refreshToken: result['refresh_token']);
+      await saveTokens(
+          token: result['token'], refreshToken: result['refresh_token']);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_data', jsonEncode(result['user']));
     }
@@ -210,7 +244,8 @@ class ApiService {
   }
 
   // Two-factor (admin): verify the Telegram OTP and obtain the real token.
-  static Future<Map<String, dynamic>> verifyTwoFactor({required String challenge, required String code}) async {
+  static Future<Map<String, dynamic>> verifyTwoFactor(
+      {required String challenge, required String code}) async {
     final result = await _request(
       action: 'verify_2fa',
       body: {
@@ -222,7 +257,8 @@ class ApiService {
       requiresAuth: false,
     );
     if (result['success'] == true) {
-      await saveTokens(token: result['token'], refreshToken: result['refresh_token']);
+      await saveTokens(
+          token: result['token'], refreshToken: result['refresh_token']);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_data', jsonEncode(result['user']));
     }
@@ -230,24 +266,29 @@ class ApiService {
   }
 
   // تغيير كلمة المرور (يستخدم التوكن الحالي)
-  static Future<Map<String, dynamic>> changePassword(String newPassword, {String? oldPassword}) async {
+  static Future<Map<String, dynamic>> changePassword(String newPassword,
+      {String? oldPassword}) async {
     return _request(action: 'change_password', body: {
       'newPassword': newPassword,
-      if (oldPassword != null && oldPassword.isNotEmpty) 'oldPassword': oldPassword,
+      if (oldPassword != null && oldPassword.isNotEmpty)
+        'oldPassword': oldPassword,
     });
   }
 
   // إعادة/تعيين كلمة مرور مستخدم تابع (الديلر = مزوّد الخدمة). بدون newPassword = افتراضي 123456.
-  static Future<Map<String, dynamic>> resetPassword({required int userId, String? newPassword}) async {
+  static Future<Map<String, dynamic>> resetPassword(
+      {required int userId, String? newPassword}) async {
     return _request(action: 'reset_password', body: {
       'userId': userId,
-      if (newPassword != null && newPassword.isNotEmpty) 'newPassword': newPassword,
+      if (newPassword != null && newPassword.isNotEmpty)
+        'newPassword': newPassword,
     });
   }
 
   // Public wrapper for any API action
   // timeout اختياري: النداءات السريعة (تنبيهات) لا تنتظر 30ث على نت ضعيف
-  static Future<Map<String, dynamic>> request(String action, [Map<String, dynamic>? body, int? timeout]) async {
+  static Future<Map<String, dynamic>> request(String action,
+      [Map<String, dynamic>? body, int? timeout]) async {
     return _request(action: action, body: body, timeout: timeout);
   }
 
@@ -272,32 +313,51 @@ class ApiService {
     await clearTokens();
     return result;
   }
+
   static Future<Map<String, dynamic>> validateToken() async {
-  final result = await _request(action: 'validate_token');
-  // API returns {"valid": true/false} - normalize to {"success": true/false}
-  if (result.containsKey('valid')) {
-    return {'success': result['valid'] == true, ...result};
+    final result = await _request(action: 'validate_token');
+    // API returns {"valid": true/false} - normalize to {"success": true/false}
+    if (result.containsKey('valid')) {
+      return {'success': result['valid'] == true, ...result};
+    }
+    return result;
   }
-  return result;
-}
 
   // ─── Devices ──────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getDevices({int? viewAs}) async {
     // timeout قصير للبولينج المتكرر: لو الاتصال علّق (شبكة الموبايل)، يفشل بسرعة
     // ويعيد إنشاء الـ client، فالدورة التالية تلحق التحديث بدل انتظار 30ث.
-    return _request(action: 'devices', body: viewAs != null ? {'view_as': viewAs} : null, timeout: 12);
+    return _request(
+        action: 'devices',
+        body: viewAs != null ? {'view_as': viewAs} : null,
+        timeout: 12);
   }
 
-  static Future<Map<String, dynamic>> getDealerDevices() async => _request(action: 'get_dealer_devices');
-  static Future<Map<String, dynamic>> getDeviceCount() async => _request(action: 'get_device_count');
+  static Future<Map<String, dynamic>> getDealerDevices() async =>
+      _request(action: 'get_dealer_devices');
+  static Future<Map<String, dynamic>> getDeviceCount() async =>
+      _request(action: 'get_device_count');
 
   // ─── Command history ─────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> logCommand({required int deviceId, required String cmdType, String cmdText = '', required String status, String result = ''}) async {
-    return _request(action: 'log_command', body: {'deviceId': deviceId, 'cmd_type': cmdType, 'cmd_text': cmdText, 'status': status, 'result': result});
+  static Future<Map<String, dynamic>> logCommand(
+      {required int deviceId,
+      required String cmdType,
+      String cmdText = '',
+      required String status,
+      String result = ''}) async {
+    return _request(action: 'log_command', body: {
+      'deviceId': deviceId,
+      'cmd_type': cmdType,
+      'cmd_text': cmdText,
+      'status': status,
+      'result': result
+    });
   }
+
   static Future<Map<String, dynamic>> getCommandHistory(int deviceId) async {
-    return _request(action: 'get_command_history', body: {'deviceId': deviceId});
+    return _request(
+        action: 'get_command_history', body: {'deviceId': deviceId});
   }
 
   static Future<Map<String, dynamic>> addDevice({
@@ -309,14 +369,19 @@ class ApiService {
     String? notes,
   }) async {
     return _request(action: 'add_device', body: {
-      'imei': imei, 'name': name, 'device_type': deviceType,
-      'user_id': userId, 'subscription_type': subscriptionType,
+      'imei': imei,
+      'name': name,
+      'device_type': deviceType,
+      'user_id': userId,
+      'subscription_type': subscriptionType,
       if (notes != null) 'notes': notes,
     });
   }
 
-  static Future<Map<String, dynamic>> updateDevice({required int deviceId, required Map<String, dynamic> updates}) async {
-    return _request(action: 'update_device', body: {'device_id': deviceId, ...updates});
+  static Future<Map<String, dynamic>> updateDevice(
+      {required int deviceId, required Map<String, dynamic> updates}) async {
+    return _request(
+        action: 'update_device', body: {'device_id': deviceId, ...updates});
   }
 
   static Future<Map<String, dynamic>> deleteDevice(int deviceId) async {
@@ -324,32 +389,49 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> changeImei({
-    required String oldImei, required String newImei, required String deviceType,
+    required String oldImei,
+    required String newImei,
+    required String deviceType,
   }) async {
     return _request(action: 'update_device', body: {
-      'old_imei': oldImei, 'new_imei': newImei, 'device_type': deviceType,
+      'old_imei': oldImei,
+      'new_imei': newImei,
+      'device_type': deviceType,
     });
   }
 
   // ─── Positions ────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> getPositions({List<int>? deviceIds}) async {
-    return _request(action: 'positions', body: deviceIds != null ? {'device_ids': deviceIds} : null);
+  static Future<Map<String, dynamic>> getPositions(
+      {List<int>? deviceIds}) async {
+    return _request(
+        action: 'positions',
+        body: deviceIds != null ? {'device_ids': deviceIds} : null);
   }
 
   // ─── Users ────────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getUsers({String? role}) async {
-    return _request(action: 'get_users', body: role != null ? {'role': role} : null);
+    return _request(
+        action: 'get_users', body: role != null ? {'role': role} : null);
   }
 
   static Future<Map<String, dynamic>> addUser({
-    required String username, required String password, required String fullName,
-    required String accountType, String? timezone, String? phone, String? mobile,
-    String? email, String? address, int? parentId,
+    required String username,
+    required String password,
+    required String fullName,
+    required String accountType,
+    String? timezone,
+    String? phone,
+    String? mobile,
+    String? email,
+    String? address,
+    int? parentId,
   }) async {
     return _request(action: 'add_user', body: {
-      'username': username, 'password': password, 'full_name': fullName,
+      'username': username,
+      'password': password,
+      'full_name': fullName,
       'account_type': accountType,
       if (timezone != null) 'timezone': timezone,
       if (phone != null) 'phone': phone,
@@ -361,7 +443,12 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> updateProfile({
-    String? fullName, String? phone, String? mobile, String? email, String? address, String? avatar,
+    String? fullName,
+    String? phone,
+    String? mobile,
+    String? email,
+    String? address,
+    String? avatar,
   }) async {
     return _request(action: 'update_profile', body: {
       if (fullName != null) 'full_name': fullName,
@@ -373,8 +460,10 @@ class ApiService {
     });
   }
 
-  static Future<Map<String, dynamic>> updateUser({required int userId, required Map<String, dynamic> updates}) async {
-    return _request(action: 'update_user', body: {'user_id': userId, ...updates});
+  static Future<Map<String, dynamic>> updateUser(
+      {required int userId, required Map<String, dynamic> updates}) async {
+    return _request(
+        action: 'update_user', body: {'user_id': userId, ...updates});
   }
 
   static Future<Map<String, dynamic>> toggleUser(int userId) async {
@@ -385,26 +474,35 @@ class ApiService {
     return _request(action: 'delete_user', body: {'user_id': userId});
   }
 
-  static Future<Map<String, dynamic>> transferAccount({required int deviceId, required int toUserId}) async {
-    return _request(action: 'transfer_account', body: {'device_id': deviceId, 'to_user_id': toUserId});
+  static Future<Map<String, dynamic>> transferAccount(
+      {required int deviceId, required int toUserId}) async {
+    return _request(
+        action: 'transfer_account',
+        body: {'device_id': deviceId, 'to_user_id': toUserId});
   }
 
   // ─── Inventory ────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> getInventory() async => _request(action: 'get_inventory');
+  static Future<Map<String, dynamic>> getInventory() async =>
+      _request(action: 'get_inventory');
 
-  static Future<Map<String, dynamic>> activateInventory({required int deviceId, required int userId}) async {
-    return _request(action: 'activate_inventory', body: {'device_id': deviceId, 'user_id': userId});
+  static Future<Map<String, dynamic>> activateInventory(
+      {required int deviceId, required int userId}) async {
+    return _request(
+        action: 'activate_inventory',
+        body: {'device_id': deviceId, 'user_id': userId});
   }
 
   // ─── Commands ─────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> sendCommand({
-    required int deviceId, required String type,
+    required int deviceId,
+    required String type,
     String? customText,
   }) async {
     final Map<String, dynamic> attributes = {};
-    if (customText != null && customText.isNotEmpty) attributes['data'] = customText;
+    if (customText != null && customText.isNotEmpty)
+      attributes['data'] = customText;
 
     final result = await _request(action: 'send_command', body: {
       'deviceId': deviceId,
@@ -413,7 +511,12 @@ class ApiService {
     });
 
     if (result['queued'] == true) {
-      return {'success': true, 'queued': true, 'speed': result['speed'], 'message': result['message']};
+      return {
+        'success': true,
+        'queued': true,
+        'speed': result['speed'],
+        'message': result['message']
+      };
     }
     if (result['id'] != null || result['type'] != null) {
       return {'success': true, 'message': tr('api_cmd_sent')};
@@ -426,10 +529,14 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> saveSos({
-    required int deviceId, required String phone1, String? phone2, String? phone3,
+    required int deviceId,
+    required String phone1,
+    String? phone2,
+    String? phone3,
   }) async {
     return _request(action: 'save_sos', body: {
-      'device_id': deviceId, 'phone1': phone1,
+      'device_id': deviceId,
+      'phone1': phone1,
       if (phone2 != null) 'phone2': phone2,
       if (phone3 != null) 'phone3': phone3,
     });
@@ -438,39 +545,62 @@ class ApiService {
   // ─── Reports ──────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getReportTrips({
-    required int deviceId, required String from, required String to, int? speedLimit,
+    required int deviceId,
+    required String from,
+    required String to,
+    int? speedLimit,
   }) async {
     return _request(action: 'report_trips', body: {
-      'device_id': deviceId, 'from': from, 'to': to,
+      'device_id': deviceId,
+      'from': from,
+      'to': to,
       if (speedLimit != null) 'speed_limit': speedLimit,
     });
   }
 
   static Future<Map<String, dynamic>> getReportStops({
-    required int deviceId, required String from, required String to,
+    required int deviceId,
+    required String from,
+    required String to,
   }) async {
-    return _request(action: 'report_stops', body: {'device_id': deviceId, 'from': from, 'to': to});
+    return _request(
+        action: 'report_stops',
+        body: {'device_id': deviceId, 'from': from, 'to': to});
   }
 
   static Future<Map<String, dynamic>> getReportSummary({
-    required int deviceId, required String from, required String to,
+    required int deviceId,
+    required String from,
+    required String to,
   }) async {
-    return _request(action: 'report_summary', body: {'device_id': deviceId, 'from': from, 'to': to});
+    return _request(
+        action: 'report_summary',
+        body: {'device_id': deviceId, 'from': from, 'to': to});
   }
 
   static Future<Map<String, dynamic>> getReportEvents({
-    required int deviceId, required String from, required String to, String? type,
+    required int deviceId,
+    required String from,
+    required String to,
+    String? type,
   }) async {
     return _request(action: 'report_events', body: {
-      'device_id': deviceId, 'from': from, 'to': to,
+      'device_id': deviceId,
+      'from': from,
+      'to': to,
       if (type != null) 'type': type,
     });
   }
 
   static Future<Map<String, dynamic>> getReportRoute({
-    required int deviceId, required String from, required String to,
+    required int deviceId,
+    required String from,
+    required String to,
   }) async {
-    return _request(action: 'report_route', body: {'deviceId': deviceId, 'from': from, 'to': to}, timeout: 90);
+    return _request(
+        action: 'report_route',
+        body: {'deviceId': deviceId, 'from': from, 'to': to},
+        timeout: 90);
   }
 
   // ─── Cards ────────────────────────────────────────────────────────────────
@@ -484,8 +614,12 @@ class ApiService {
     } catch (_) {}
   }
 
-  static Future<Map<String, dynamic>> getCards() async => _request(action: 'get_cards');
-  static Future<Map<String, dynamic>> getCardBalance({int? userId}) async => _request(action: 'get_card_balance', body: userId != null ? {'userId': userId} : null);
+  static Future<Map<String, dynamic>> getCards() async =>
+      _request(action: 'get_cards');
+  static Future<Map<String, dynamic>> getCardBalance({int? userId}) async =>
+      _request(
+          action: 'get_card_balance',
+          body: userId != null ? {'userId': userId} : null);
 
   static Future<Map<String, dynamic>> assignCards({
     required int toUserId,
@@ -495,7 +629,8 @@ class ApiService {
     // Server expects: dealer_id, new_yearly, new_lifetime, renew_yearly, renew_lifetime
     final Map<String, String> typeMap = {
       'new_subscription': 'new_yearly',
-      'new_lifetime': 'new_lifetime',   // السيرفر يقرأ new_lifetime؛ 'lifetime' كان يُهمَل بصمت
+      'new_lifetime':
+          'new_lifetime', // السيرفر يقرأ new_lifetime؛ 'lifetime' كان يُهمَل بصمت
       'renew_annual': 'renew_yearly',
       'renew_lifetime': 'renew_lifetime',
     };
@@ -506,28 +641,39 @@ class ApiService {
     });
   }
 
-  static Future<Map<String, dynamic>> activateCard({required String cardCode, required int deviceId}) async {
-    return _request(action: 'activate_card', body: {'card_code': cardCode, 'device_id': deviceId});
+  static Future<Map<String, dynamic>> activateCard(
+      {required String cardCode, required int deviceId}) async {
+    return _request(
+        action: 'activate_card',
+        body: {'card_code': cardCode, 'device_id': deviceId});
   }
 
   // ─── Geofences ────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> getGeofences() async => _request(action: 'geofences');
+  static Future<Map<String, dynamic>> getGeofences() async =>
+      _request(action: 'geofences');
 
   static Future<Map<String, dynamic>> getDeviceGeofences(int deviceId) async {
     return _request(action: 'device_geofences', body: {'device_id': deviceId});
   }
 
-  static Future<Map<String, dynamic>> addGeofence({required String name, required String area, String? color}) async {
-    return _request(action: 'add_geofence', body: {'name': name, 'area': area, if (color != null) 'color': color});
+  static Future<Map<String, dynamic>> addGeofence(
+      {required String name, required String area, String? color}) async {
+    return _request(
+        action: 'add_geofence',
+        body: {'name': name, 'area': area, if (color != null) 'color': color});
   }
 
-  static Future<Map<String, dynamic>> linkDeviceGeofence({required int deviceId, required int geofenceId}) async {
-    return _request(action: 'link_device_geofence', body: {'device_id': deviceId, 'geofence_id': geofenceId});
+  static Future<Map<String, dynamic>> linkDeviceGeofence(
+      {required int deviceId, required int geofenceId}) async {
+    return _request(
+        action: 'link_device_geofence',
+        body: {'device_id': deviceId, 'geofence_id': geofenceId});
   }
 
   static Future<Map<String, dynamic>> deleteGeofence(int geofenceId) async {
-    return _request(action: 'delete_geofence', body: {'geofence_id': geofenceId});
+    return _request(
+        action: 'delete_geofence', body: {'geofence_id': geofenceId});
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -538,10 +684,12 @@ class ApiService {
     late DateTime to;
     switch (period) {
       case 'hour':
-        from = now.subtract(const Duration(hours: 1)); to = now;
+        from = now.subtract(const Duration(hours: 1));
+        to = now;
         break;
       case 'today':
-        from = DateTime(now.year, now.month, now.day); to = now;
+        from = DateTime(now.year, now.month, now.day);
+        to = now;
         break;
       case 'yesterday':
         final y = now.subtract(const Duration(days: 1));
@@ -549,11 +697,16 @@ class ApiService {
         to = DateTime(y.year, y.month, y.day, 23, 59, 59);
         break;
       case 'week':
-        from = now.subtract(const Duration(days: 7)); to = now;
+        from = now.subtract(const Duration(days: 7));
+        to = now;
         break;
       default:
-        from = DateTime(now.year, now.month, now.day); to = now;
+        from = DateTime(now.year, now.month, now.day);
+        to = now;
     }
-    return {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String()};
+    return {
+      'from': from.toUtc().toIso8601String(),
+      'to': to.toUtc().toIso8601String()
+    };
   }
 }
