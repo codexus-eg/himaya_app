@@ -32,6 +32,10 @@
 	<string>The camera is used to scan a tracker's QR code when you add a new device.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Himaya Track shows your position on the map so you can see where you are relative to your vehicles.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Himaya Track needs access to location in the background to continuously track vehicles and geofences.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Himaya Track needs access to location to track vehicles and show them on the map even when the app is in the background.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a photo from your library to set your account picture.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
