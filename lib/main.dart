@@ -15,25 +15,27 @@ import 'services/notification_state.dart';
 
 // ─── Notification routing helpers ──────────────────────────
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 // Build a notif map (matching get_notifications shape) from FCM data + notification.
-Map<String, dynamic> _notifMapFromData(Map<String, dynamic> data, {String? title, String? body}) {
+Map<String, dynamic> _notifMapFromData(Map<String, dynamic> data,
+    {String? title, String? body}) {
   int? _i(dynamic v) => int.tryParse(v?.toString() ?? '');
   double? _d(dynamic v) => double.tryParse(v?.toString() ?? '');
   return {
-    'type':          data['type']?.toString(),
+    'type': data['type']?.toString(),
     'alarm_subtype': data['alarm_subtype']?.toString(),
-    'device_name':   data['device_name']?.toString(),
-    'title':         title ?? data['title']?.toString(),
-    'body':          body ?? data['body']?.toString(),
-    'event_time':    data['event_time']?.toString(),
-    'created_at':    data['event_time']?.toString(),
-    'traccar_id':    _i(data['traccar_id']),
-    'device_id':     _i(data['device_id']),
-    'lat':           _d(data['lat']),
-    'lng':           _d(data['lng']),
-    'speed':         _d(data['speed']),
+    'device_name': data['device_name']?.toString(),
+    'title': title ?? data['title']?.toString(),
+    'body': body ?? data['body']?.toString(),
+    'event_time': data['event_time']?.toString(),
+    'created_at': data['event_time']?.toString(),
+    'traccar_id': _i(data['traccar_id']),
+    'device_id': _i(data['device_id']),
+    'lat': _d(data['lat']),
+    'lng': _d(data['lng']),
+    'speed': _d(data['speed']),
   };
 }
 
@@ -51,7 +53,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 // ─── التنبيهات الحرجة ──────────────────────────────────────────
 // سحب الشريحة أو قطع الكهرباء أو الاستغاثة ليست إشعارًا عاديًا يُقرأ لاحقًا —
@@ -111,9 +114,16 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Local notifications setup
-  const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const DarwinInitializationSettings iosSettings =
+      DarwinInitializationSettings();
+
   await flutterLocalNotificationsPlugin.initialize(
-    const InitializationSettings(android: androidSettings),
+    const InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    ),
     onDidReceiveNotificationResponse: (NotificationResponse resp) {
       // foreground local notification tap → payload contains FCM data JSON
       if (resp.payload == null || resp.payload!.isEmpty) return;
@@ -126,14 +136,16 @@ void main() async {
 
   // قناة التنبيهات الحرجة — تُنشأ صراحةً كي يستخدمها النظام حين تصل
   // الإشعارات والتطبيق مغلق (يعرضها النظام لا التطبيق).
-  final androidNotif = flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  final androidNotif =
+      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
   await androidNotif?.createNotificationChannel(kCriticalChannel);
   // إزالة القناة السابقة كي لا تبقى معلّقة بلا استعمال في إعدادات الهاتف
   await androidNotif?.deleteNotificationChannel('himaya_critical_v1');
 
   // Request permission
-  await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+  await FirebaseMessaging.instance
+      .requestPermission(alert: true, badge: true, sound: true);
 
   // Save FCM token
   String? token = await FirebaseMessaging.instance.getToken();
@@ -152,7 +164,8 @@ void main() async {
   final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
   if (initialMessage != null) {
     // delay handling until after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) => _handleMessageClick(initialMessage));
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _handleMessageClick(initialMessage));
   }
 
   // App opened from background via notification tap
@@ -171,7 +184,8 @@ void main() async {
             ? _criticalDetails()
             : const NotificationDetails(
                 android: AndroidNotificationDetails(
-                  'himaya_channel', 'H.Track Alerts',
+                  'himaya_channel',
+                  'H.Track Alerts',
                   channelDescription: 'تنبيهات التتبع',
                   importance: Importance.high,
                   priority: Priority.high,
@@ -266,8 +280,10 @@ class HimayaApp extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: red,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          textStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          textStyle:
+              const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -285,8 +301,10 @@ class HimayaApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: red),
         ),
-        hintStyle: const TextStyle(color: Color(0xFF8892A4), fontFamily: 'Cairo'),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        hintStyle:
+            const TextStyle(color: Color(0xFF8892A4), fontFamily: 'Cairo'),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       cardTheme: CardTheme(
         color: Colors.white,
@@ -337,8 +355,10 @@ class HimayaApp extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: red,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          textStyle: const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          textStyle:
+              const TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.w600),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -356,8 +376,10 @@ class HimayaApp extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: red),
         ),
-        hintStyle: const TextStyle(color: Color(0xFF6B7280), fontFamily: 'Cairo'),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        hintStyle:
+            const TextStyle(color: Color(0xFF6B7280), fontFamily: 'Cairo'),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       cardTheme: CardTheme(
         color: card,
@@ -376,24 +398,33 @@ class HimayaApp extends StatelessWidget {
       dialogTheme: DialogTheme(
         backgroundColor: surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        titleTextStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-        contentTextStyle: const TextStyle(fontFamily: 'Cairo', fontSize: 13, color: Color(0xFFB0B8C8)),
+        titleTextStyle: const TextStyle(
+            fontFamily: 'Cairo',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white),
+        contentTextStyle: const TextStyle(
+            fontFamily: 'Cairo', fontSize: 13, color: Color(0xFFB0B8C8)),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       ),
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: card,
         contentTextStyle: TextStyle(fontFamily: 'Cairo', color: Colors.white),
       ),
       textTheme: const TextTheme(
-        bodyLarge:   TextStyle(fontFamily: 'Cairo', color: Colors.white),
-        bodyMedium:  TextStyle(fontFamily: 'Cairo', color: Colors.white),
-        bodySmall:   TextStyle(fontFamily: 'Cairo', color: Color(0xFFB0B8C8)),
-        titleMedium: TextStyle(fontFamily: 'Cairo', color: Colors.white, fontWeight: FontWeight.w600),
-        titleSmall:  TextStyle(fontFamily: 'Cairo', color: Color(0xFFB0B8C8)),
-        labelSmall:  TextStyle(fontFamily: 'Cairo', color: Color(0xFFB0B8C8)),
+        bodyLarge: TextStyle(fontFamily: 'Cairo', color: Colors.white),
+        bodyMedium: TextStyle(fontFamily: 'Cairo', color: Colors.white),
+        bodySmall: TextStyle(fontFamily: 'Cairo', color: Color(0xFFB0B8C8)),
+        titleMedium: TextStyle(
+            fontFamily: 'Cairo',
+            color: Colors.white,
+            fontWeight: FontWeight.w600),
+        titleSmall: TextStyle(fontFamily: 'Cairo', color: Color(0xFFB0B8C8)),
+        labelSmall: TextStyle(fontFamily: 'Cairo', color: Color(0xFFB0B8C8)),
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: surface,
@@ -401,11 +432,16 @@ class HimayaApp extends StatelessWidget {
         textStyle: const TextStyle(fontFamily: 'Cairo', color: Colors.white),
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? red : const Color(0xFF6B7280)),
-        trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? const Color(0x55E53E5A) : border),
+        thumbColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected) ? red : const Color(0xFF6B7280)),
+        trackColor: WidgetStateProperty.resolveWith((s) =>
+            s.contains(WidgetState.selected)
+                ? const Color(0x55E53E5A)
+                : border),
       ),
       checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? red : Colors.transparent),
+        fillColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected) ? red : Colors.transparent),
         side: const BorderSide(color: Color(0xFF6B7280)),
       ),
     );
