@@ -8,12 +8,10 @@ workflows:
       app_store_connect: noourway
 
     environment:
-      # تحديد نسخة فلاتر لتطابق الكود وتمنع الأخطاء الوهمية
       flutter: 3.24.5
       xcode: latest
       cocoapods: default
 
-      # التوقيع التلقائي
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.himayatrack.app
@@ -21,7 +19,7 @@ workflows:
     scripts:
       - name: Set iOS deployment target
         script: |
-          # رفع الإصدار لـ 16.0 لدعم mobile_scanner
+          # تحديث إصدار المشروع الأساسي إلى 16.0
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 16.0;/g' ios/Runner.xcodeproj/project.pbxproj
 
       - name: Clean and Get Dependencies
@@ -33,6 +31,13 @@ workflows:
           rm -rf Pods Podfile.lock
           pod install --repo-update
           cd ..
+
+      - name: Fix Apple MinimumOSVersion
+        script: |
+          # وضعنا هذا الإصلاح هنا (بعد التنظيف وقبل البناء) لضمان عدم حذفه
+          if [ -f "ios/Flutter/AppFrameworkInfo.plist" ]; then
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 16.0" ios/Flutter/AppFrameworkInfo.plist 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 16.0" ios/Flutter/AppFrameworkInfo.plist
+          fi
 
       - name: Setup Code Signing
         script: xcode-project use-profiles
