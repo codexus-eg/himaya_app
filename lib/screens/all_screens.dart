@@ -5728,6 +5728,9 @@ class _AccountScreenState extends State<AccountScreen> {
             style: const TextStyle(fontFamily: 'Cairo')),
         backgroundColor: ok ? const Color(0xFF6BA539) : const Color(0xFFC41E3A),
       ));
+      if (ok) {
+        await context.read<AppProvider>().refreshUser();
+      }
     }
   }
 
