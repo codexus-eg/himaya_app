@@ -13,13 +13,8 @@ class ApiService {
   static const String baseUrl = 'https://himaya-track.com/api.php';
   static const int timeoutSeconds = 30;
 
-  // Client مشترك = keep-alive: بيوفّر TCP+TLS handshake جديد (~200-500ms على
-  // شبكة الموبايل) في كل طلب. الاتصال بيفضل دافي بين دورات الـ polling (10ث).
   static http.Client _client = http.Client();
 
-  // يعيد إنشاء الـ HTTP client (يقفل اتصالات keep-alive القديمة). ضروري على الموبايل
-  // لأن الاتصالات بتبوظ عند تبديل الشبكة/الرجوع من الخلفية فتسبّب تعليق الطلبات
-  // لحد الـ timeout (تأخير 30ث-2د في تحديث الخريطة). reset = الطلب التالي اتصال جديد.
   static void resetClient() {
     try {
       _client.close();
@@ -51,8 +46,6 @@ class ApiService {
     await prefs.remove('user_data');
   }
 
-  // ─── Core Request ──────────────────────────────────────────────────────────
-
   static Future<Map<String, dynamic>> _request({
     required String action,
     Map<String, dynamic>? body,
@@ -64,8 +57,7 @@ class ApiService {
       final headers = <String, String>{
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Connection':
-            'close', // <-- هذا السطر يمنع مشكلة انقطاع الاتصال 0 bytes written في iOS
+        'Connection': 'close',
       };
 
       if (requiresAuth) {
@@ -84,17 +76,12 @@ class ApiService {
           .post(Uri.parse(baseUrl), headers: headers, body: jsonEncode(payload))
           .timeout(Duration(seconds: timeout ?? timeoutSeconds));
 
-      // Handle raw List response - wrap it
       final decoded = jsonDecode(response.body);
       if (decoded is List) {
         return {'success': true, 'data': decoded};
       }
       final data = decoded as Map<String, dynamic>;
 
-      // A 401 on an authenticated request = expired/invalid token → try refresh,
-      // else session expired. But on a NON-auth request (login / verify_2fa /
-      // refresh_token) a 401 means "wrong credentials" — pass the server's real
-      // error through instead of the misleading "session expired" message.
       if (response.statusCode == 401 && requiresAuth && !isRetry) {
         final rr = await _refreshToken();
         if (rr == 'ok') {
@@ -106,7 +93,6 @@ class ApiService {
               timeout: timeout);
         }
         if (rr == 'network') {
-          // لم نصل للسيرفر: الجلسة قد تكون سليمة تمامًا — لا تُمسح
           return {
             'success': false,
             'error': tr('api_no_internet'),
@@ -118,10 +104,25 @@ class ApiService {
       }
 
       return data;
-      // network:true => عطل اتصال لا رفض من السيرفر. من يقرأه يمتنع عن مسح
-      // الجلسة: التوكن على السيرفر صالح لسنة، والفشل هنا مؤقت.
     } on SocketException {
-      resetClient(); // اتصال ميت → اعمل client جديد للطلب التالي
+      resetClient();
+      return {
+        'success': false,
+        'error': tr('api_no_internet'),
+        'network': true
+      };
+    } on http.ClientException {
+      // هنا اصطدنا خطأ انقطاع الاتصال في الخلفية للـ iOS
+      resetClient();
+      if (!isRetry) {
+        // إعادة الطلب فوراً باتصال جديد دون أن يشعر المستخدم
+        return _request(
+            action: action,
+            body: body,
+            requiresAuth: requiresAuth,
+            isRetry: true,
+            timeout: timeout);
+      }
       return {
         'success': false,
         'error': tr('api_no_internet'),
@@ -132,7 +133,7 @@ class ApiService {
     } on FormatException {
       return {'success': false, 'error': tr('api_format_err'), 'network': true};
     } on TimeoutException {
-      resetClient(); // الطلب علّق على اتصال keep-alive بايظ → اقفل الـ pool
+      resetClient();
       return {'success': false, 'error': tr('api_timeout'), 'network': true};
     } catch (e) {
       debugPrint('API Error [$action]: $e');
@@ -140,11 +141,9 @@ class ApiService {
     }
   }
 
-  // 'ok' | 'rejected' (السيرفر ردّ ورفض) | 'network' (لم نصل إليه أصلًا)
-  // كانت ترجع false في الحالتين، فتُمسح جلسة سليمة عند أول عثرة نت.
   static Future<String> _refreshToken() async {
     final refresh = await getRefreshToken();
-    if (refresh == null) return 'rejected'; // لا يوجد ما نجدّد به
+    if (refresh == null) return 'rejected';
     try {
       final response = await _client
           .post(
@@ -152,30 +151,32 @@ class ApiService {
             headers: {
               'Content-Type': 'application/json',
               'Connection': 'close'
-            }, // إغلاق الاتصال هنا أيضاً
+            },
             body: jsonEncode(
                 {'action': 'refresh_token', 'refresh_token': refresh}),
           )
           .timeout(const Duration(seconds: timeoutSeconds));
-      // 5xx = عطل مؤقت في السيرفر لا حكم على التوكن
       if (response.statusCode >= 500) return 'network';
       Map? data;
       try {
         final d = jsonDecode(response.body);
         if (d is Map) data = d;
       } catch (_) {}
-      if (data == null) return 'network'; // رد غير مفهوم (صفحة خطأ من وسيط)
+      if (data == null) return 'network';
       if (data['success'] == true && data['token'] != null) {
         await saveTokens(
             token: data['token'],
             refreshToken: data['refresh_token'] ?? refresh);
         return 'ok';
       }
-      return 'rejected'; // ردّ وفهمناه: التوكن غير صالح
+      return 'rejected';
     } on TimeoutException {
       resetClient();
       return 'network';
     } on SocketException {
+      resetClient();
+      return 'network';
+    } on http.ClientException {
       resetClient();
       return 'network';
     } catch (_) {
@@ -183,10 +184,6 @@ class ApiService {
     }
   }
 
-  // ─── Auth ──────────────────────────────────────────────────────────────────
-
-  // طراز الهاتف كما يعرفه صاحبه — بدونه تظهر كل الجلسات باسم واحد فلا يميّز
-  // صاحب الحساب أيّها جهازه. يُقرأ مرة واحدة ويُحفظ.
   static String? _deviceName;
   static Future<String> deviceName() async {
     if (_deviceName != null) return _deviceName!;
@@ -204,9 +201,6 @@ class ApiService {
     return _deviceName!;
   }
 
-  // معرّف ثابت لكل تثبيت — بدونه كل دخول يُسجَّل «جهازًا جديدًا» في قائمة الأجهزة
-  // الداخلة، فيمتلئ حساب صاحبه بعشرات الصفوف وهي هاتف واحد. لا يُشتق من عتاد
-  // الجهاز (لا نحتاجه ولا نريد تتبّعه) — رقم عشوائي يُولَّد مرة ويبقى مع التطبيق.
   static String? _deviceId;
   static Future<String> deviceId() async {
     if (_deviceId != null) return _deviceId!;
@@ -243,7 +237,6 @@ class ApiService {
     return result;
   }
 
-  // Two-factor (admin): verify the Telegram OTP and obtain the real token.
   static Future<Map<String, dynamic>> verifyTwoFactor(
       {required String challenge, required String code}) async {
     final result = await _request(
@@ -265,7 +258,6 @@ class ApiService {
     return result;
   }
 
-  // تغيير كلمة المرور (يستخدم التوكن الحالي)
   static Future<Map<String, dynamic>> changePassword(String newPassword,
       {String? oldPassword}) async {
     return _request(action: 'change_password', body: {
@@ -275,7 +267,6 @@ class ApiService {
     });
   }
 
-  // إعادة/تعيين كلمة مرور مستخدم تابع (الديلر = مزوّد الخدمة). بدون newPassword = افتراضي 123456.
   static Future<Map<String, dynamic>> resetPassword(
       {required int userId, String? newPassword}) async {
     return _request(action: 'reset_password', body: {
@@ -285,8 +276,6 @@ class ApiService {
     });
   }
 
-  // Public wrapper for any API action
-  // timeout اختياري: النداءات السريعة (تنبيهات) لا تنتظر 30ث على نت ضعيف
   static Future<Map<String, dynamic>> request(String action,
       [Map<String, dynamic>? body, int? timeout]) async {
     return _request(action: action, body: body, timeout: timeout);
@@ -298,10 +287,6 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getMe() async => _request(action: 'me');
   static Future<Map<String, dynamic>> logout() async {
-    // Send THIS device's FCM token so the server removes only this device's
-    // token (multi-mobile push): logout on one phone must not stop push on the
-    // user's other phones. Without it the server falls back to deleting ALL of
-    // the user's tokens.
     String? fcmToken;
     try {
       fcmToken = await FirebaseMessaging.instance.getToken();
@@ -316,18 +301,13 @@ class ApiService {
 
   static Future<Map<String, dynamic>> validateToken() async {
     final result = await _request(action: 'validate_token');
-    // API returns {"valid": true/false} - normalize to {"success": true/false}
     if (result.containsKey('valid')) {
       return {'success': result['valid'] == true, ...result};
     }
     return result;
   }
 
-  // ─── Devices ──────────────────────────────────────────────────────────────
-
   static Future<Map<String, dynamic>> getDevices({int? viewAs}) async {
-    // timeout قصير للبولينج المتكرر: لو الاتصال علّق (شبكة الموبايل)، يفشل بسرعة
-    // ويعيد إنشاء الـ client، فالدورة التالية تلحق التحديث بدل انتظار 30ث.
     return _request(
         action: 'devices',
         body: viewAs != null ? {'view_as': viewAs} : null,
@@ -339,7 +319,6 @@ class ApiService {
   static Future<Map<String, dynamic>> getDeviceCount() async =>
       _request(action: 'get_device_count');
 
-  // ─── Command history ─────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> logCommand(
       {required int deviceId,
       required String cmdType,
@@ -400,16 +379,12 @@ class ApiService {
     });
   }
 
-  // ─── Positions ────────────────────────────────────────────────────────────
-
   static Future<Map<String, dynamic>> getPositions(
       {List<int>? deviceIds}) async {
     return _request(
         action: 'positions',
         body: deviceIds != null ? {'device_ids': deviceIds} : null);
   }
-
-  // ─── Users ────────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getUsers({String? role}) async {
     return _request(
@@ -481,8 +456,6 @@ class ApiService {
         body: {'device_id': deviceId, 'to_user_id': toUserId});
   }
 
-  // ─── Inventory ────────────────────────────────────────────────────────────
-
   static Future<Map<String, dynamic>> getInventory() async =>
       _request(action: 'get_inventory');
 
@@ -492,8 +465,6 @@ class ApiService {
         action: 'activate_inventory',
         body: {'device_id': deviceId, 'user_id': userId});
   }
-
-  // ─── Commands ─────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> sendCommand({
     required int deviceId,
@@ -541,8 +512,6 @@ class ApiService {
       if (phone3 != null) 'phone3': phone3,
     });
   }
-
-  // ─── Reports ──────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getReportTrips({
     required int deviceId,
@@ -603,8 +572,6 @@ class ApiService {
         timeout: 90);
   }
 
-  // ─── Cards ────────────────────────────────────────────────────────────────
-
   static Future<void> saveFcmToken(String token) async {
     try {
       await _request(action: 'save_fcm_token', body: {
@@ -626,11 +593,9 @@ class ApiService {
     required String cardType,
     required int quantity,
   }) async {
-    // Server expects: dealer_id, new_yearly, new_lifetime, renew_yearly, renew_lifetime
     final Map<String, String> typeMap = {
       'new_subscription': 'new_yearly',
-      'new_lifetime':
-          'new_lifetime', // السيرفر يقرأ new_lifetime؛ 'lifetime' كان يُهمَل بصمت
+      'new_lifetime': 'new_lifetime',
       'renew_annual': 'renew_yearly',
       'renew_lifetime': 'renew_lifetime',
     };
@@ -647,8 +612,6 @@ class ApiService {
         action: 'activate_card',
         body: {'card_code': cardCode, 'device_id': deviceId});
   }
-
-  // ─── Geofences ────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getGeofences() async =>
       _request(action: 'geofences');
@@ -675,8 +638,6 @@ class ApiService {
     return _request(
         action: 'delete_geofence', body: {'geofence_id': geofenceId});
   }
-
-  // ─── Helpers ──────────────────────────────────────────────────────────────
 
   static Map<String, String> getDateRange(String period) {
     final now = DateTime.now();
